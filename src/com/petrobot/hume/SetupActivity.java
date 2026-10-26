@@ -359,7 +359,7 @@ public class SetupActivity extends Activity {
     void look() {
         title("Escolha o visual");
         subtitle("O fundo atrás dos apps. Percorra a lista para ver cada um.");
-        String cur = Profiles.homePrefs(this).getString("wallpaper", "aurora");
+        String cur = Profiles.homePrefs(this).getString("wallpaper", MainActivity.WALL_PHOTOS);
         setBackdrop(cur);
         LinearLayout l = list();
         for (int i = 0; i < MainActivity.WALL_KEYS.length; i++) {

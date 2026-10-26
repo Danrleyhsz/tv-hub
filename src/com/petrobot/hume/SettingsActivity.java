@@ -240,7 +240,7 @@ public class SettingsActivity extends Activity {
         nav(WATCHING, () -> !Profiles.homePrefs(this).getBoolean("cw_enabled", false) ? "Desligado" : MediaWatchService.granted(this) ? "Ligado"
                 : Perms.listenerSupported(this) ? "Precisa de permissão" : "Não existe nesta TV");
         nav(HOME, () -> {
-            String k = Profiles.homePrefs(this).getString("wallpaper", "aurora");
+            String k = Profiles.homePrefs(this).getString("wallpaper", MainActivity.WALL_PHOTOS);
             int i = java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k);
             return MainActivity.WALL_NAMES[Math.max(0, i)];
         });
@@ -469,11 +469,11 @@ public class SettingsActivity extends Activity {
         row("Tela inicial", () -> Perms.isDefaultHome(this) ? "Launcher TV Hub" : "Usar este launcher como tela inicial\u2026",
                 () -> Perms.requestDefaultHome(this));
         row("Fundo", () -> {
-            String k = Profiles.homePrefs(this).getString("wallpaper", "aurora");
+            String k = Profiles.homePrefs(this).getString("wallpaper", MainActivity.WALL_PHOTOS);
             int i = java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k);
             return MainActivity.WALL_NAMES[Math.max(0, i)];
         }, () -> {
-            String k = Profiles.homePrefs(this).getString("wallpaper", "aurora");
+            String k = Profiles.homePrefs(this).getString("wallpaper", MainActivity.WALL_PHOTOS);
             int cur = Math.max(0, java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k));
             dialog("Fundo").setSingleChoiceItems(MainActivity.WALL_NAMES, cur, (d, w) -> {
                 Profiles.homePrefs(this).edit().putString("wallpaper", MainActivity.WALL_KEYS[w]).apply();
