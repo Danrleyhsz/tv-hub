@@ -440,6 +440,7 @@ public class MainActivity extends Activity {
             if (launchOverlay == null && !statusFocused()) clockBox.setAlpha(clockAlpha());
             if (launchOverlay == null && !switcher.isFocused()) switcher.setAlpha(folderMode ? 0f : clockAlpha());
             if (launchOverlay == null && weatherCard != null && !weatherCard.isFocused()) homeBox.setAlpha(weatherAlpha());
+            if (!chromeFocused()) chromeFocusable(clockAlpha() > 0.5f);
             if (dockRow != null) dockRow.invalidate();
         });
 
@@ -1805,7 +1806,24 @@ public class MainActivity extends Activity {
 
     /** Up from the shelf/dock: the tab bar, or the status row when the tab bar is hidden. */
     void focusTop() {
+        chromeFocusable(true);
         (switcher != null && switcher.getVisibility() == View.VISIBLE ? switcher : ccButton).requestFocus();
+    }
+
+    boolean chromeFocused() {
+        return getCurrentFocus() == weatherCard || statusFocused();
+    }
+
+    /**
+     * The clock, the weather and the status row fade out as the grid scrolls up, but they stay
+     * where they are: left focusable, the weather card sits beside the grid rows and steals the
+     * left arrow from the first column. Invisible means out of the focus order too.
+     */
+    void chromeFocusable(boolean on) {
+        if (weatherCard != null) weatherCard.setFocusable(on);
+        for (View v : new View[]{refreshButton, searchButton, ccButton, avatarView}) {
+            if (v != null) v.setFocusable(on);
+        }
     }
 
     boolean continueMode() {
