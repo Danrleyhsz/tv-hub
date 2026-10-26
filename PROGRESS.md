@@ -67,19 +67,13 @@ pasta vazia o fundo cai no gradiente Aurora. **Desinstalar ou limpar os dados ap
 - [ ] Legenda da foto no canto inferior direito do protetor de tela (print 06) e o bilhete
       translúcido no canto superior direito (print 05) — depende dos bilhetes.
 
-## Para fazer na próxima vez que a TV ligar
-
-O assistente de primeira execução ficou sem terminar: ele reaparece ao abrir o launcher, mesmo com
-tudo já configurado (perfil, Paisagens, clima de Imperatriz, prateleira desligada). A causa estava
-no próprio assistente — "Escolher cidade" abria os Ajustes e nunca voltava para a próxima página,
-então não dava para chegar no fim. Já está corrigido no código e compilado; falta instalar com
-`instalar.bat` e passar o assistente uma vez.
-
 ## Decisões / pendências
 
 - Launcher **não** foi definido como padrão: a TV continua abrindo o launcher de fábrica
   (`com.google.android.apps.tv.launcherx`).
 - Permissão de localização **negada**; o clima usa cidade fixa.
-- Imperatriz-MA é o padrão no código (`Weather.DEF_PLACE`), mas o assistente de primeira execução
-  ainda oferece "Use My Location" como primeira opção — escolher ela volta a detectar a cidade
-  pelo IP (deu Parauapebas). Dá para corrigir em Ajustes → Weather → Location.
+- Imperatriz-MA é o padrão no código (`Weather.DEF_PLACE`), mas o assistente ainda oferece "Usar
+  minha localização" como primeira opção — escolher ela volta a detectar a cidade pelo IP. Dá para
+  corrigir em Ajustes → Clima → Localização.
+- O assistente de primeira execução foi concluído na TV em 2026-10-26, com o clima em Imperatriz,
+  fundo Paisagens, prateleira de cima desligada e localização negada.
