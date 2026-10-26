@@ -22,7 +22,9 @@ if errorlevel 1 (
 )
 
 rem So desativa o que esta ativo agora, e anota para o restaurar.bat.
-for %%P in (com.google.android.apps.tv.launcherx com.tcl.tv.tclhome_master com.tcl.tv.tclhome_passive com.gathin.tvhome) do (
+rem O setupwraith registra uma tela inicial de recuperacao com prioridade maior que a nossa:
+rem sem desativar ele, o botao Home cai nela e nao abre o launcher.
+for %%P in (com.google.android.apps.tv.launcherx com.google.android.tungsten.setupwraith com.tcl.tv.tclhome_master com.tcl.tv.tclhome_passive com.gathin.tvhome) do (
   "%ADB%" -s %TV% shell pm list packages -e %%P | "%SystemRoot%\System32\find.exe" "%%P" >nul && (
     "%ADB%" -s %TV% shell pm disable-user --user 0 %%P >nul && echo %%P>>"%LISTA%"
   )

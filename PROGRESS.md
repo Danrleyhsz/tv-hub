@@ -69,8 +69,11 @@ pasta vazia o fundo cai no gradiente Aurora. **Desinstalar ou limpar os dados ap
 
 ## Decisões / pendências
 
-- Launcher **não** foi definido como padrão: a TV continua abrindo o launcher de fábrica
-  (`com.google.android.apps.tv.launcherx`).
+- Launcher **é** a tela inicial da TV desde 2026-10-26. Para isso o `definir-como-padrao.bat`
+  desativou `com.google.android.apps.tv.launcherx`, `com.tcl.tv.tclhome_passive` e
+  `com.google.android.tungsten.setupwraith` — esse último registra uma tela inicial de recuperação
+  com prioridade maior que a nossa, e sem desativá-lo o botão Home caía numa tela vazia. Os três
+  estão anotados em `launchers-desativados.txt` e o `restaurar.bat` reativa exatamente eles.
 - Permissão de localização **negada**; o clima usa cidade fixa.
 - Imperatriz-MA é o padrão no código (`Weather.DEF_PLACE`), mas o assistente ainda oferece "Usar
   minha localização" como primeira opção — escolher ela volta a detectar a cidade pelo IP. Dá para
