@@ -1,0 +1,7 @@
+# Os scripts de build rodam no Git Bash: CRLF quebra o shebang.
+*.sh text eol=lf
+# Os .bat rodam no cmd.exe.
+*.bat text eol=crlf
+*.ttf binary
+*.png binary
+*.jpg binary
