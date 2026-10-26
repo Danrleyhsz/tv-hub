@@ -39,6 +39,10 @@ Windows e para usar `jar` quando não existe `zip` (Git Bash não traz `zip`).
       pequeno com a data no canto superior esquerdo. Qualquer tecla volta pra home.
 - [x] Interface em português: assistente de primeira execução, ajustes, central de controle,
       busca, perfis, permissões e avisos.
+- [x] Repositório privado https://github.com/Danrleyhsz/tv-hub, com README, LICENSE e NOTICE da
+      base, e os scripts `instalar.bat`, `definir-como-padrao.bat` e `restaurar.bat`. O instalar e
+      o restaurar foram rodados de ponta a ponta; o definir-como-padrao não, porque troca a tela
+      inicial da TV.
 - [x] Conteúdo indiano fora: jornais (agora g1, Folha, Agência Brasil, UOL e BBC Brasil),
       provedores de streaming (Netflix, Prime, Apple TV, Disney+, Max, Globoplay, Crunchyroll),
       região do TMDB/JustWatch em BR, idiomas, voz em pt-BR e teclado de acentos no lugar do
@@ -62,7 +66,14 @@ pasta vazia o fundo cai no gradiente Aurora. **Desinstalar ou limpar os dados ap
 - [ ] Medir o desempenho do foco na TV (seção 6 do spec).
 - [ ] Legenda da foto no canto inferior direito do protetor de tela (print 06) e o bilhete
       translúcido no canto superior direito (print 05) — depende dos bilhetes.
-- [ ] Repositório privado no GitHub, script de instalação e de rollback.
+
+## Para fazer na próxima vez que a TV ligar
+
+O assistente de primeira execução ficou sem terminar: ele reaparece ao abrir o launcher, mesmo com
+tudo já configurado (perfil, Paisagens, clima de Imperatriz, prateleira desligada). A causa estava
+no próprio assistente — "Escolher cidade" abria os Ajustes e nunca voltava para a próxima página,
+então não dava para chegar no fim. Já está corrigido no código e compilado; falta instalar com
+`instalar.bat` e passar o assistente uma vez.
 
 ## Decisões / pendências
 
