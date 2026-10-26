@@ -4,3 +4,4 @@ debug.keystore
 *.jks
 keystore-password.txt
 launchers-desativados.txt
+.DS_Store
