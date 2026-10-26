@@ -484,14 +484,15 @@ public class SettingsActivity extends Activity {
         row("Sons de navegação", () -> Clicks.enabled(this) ? "Ligado" : "Desligado",
                 () -> Clicks.setEnabled(this, !Clicks.enabled(this)));
         row("Protetor de tela depois de", () -> {
-            int sec = Profiles.homePrefs(this).getInt("idle_sec", 20);
-            return sec == 0 ? "Desligado" : "Depois de " + sec + " s";
+            int sec = Profiles.homePrefs(this).getInt("idle_sec", MainActivity.IDLE_DEFAULT);
+            return sec == 0 ? "Desligado" : sec < 60 ? "Depois de " + sec + " s" : "Depois de " + (sec / 60) + " min";
         }, () -> {
-            int[] secs = {0, 10, 20, 30, 60};
-            String[] names = {"Desligado", "10 segundos", "20 segundos  (padrão)", "30 segundos", "1 minuto"};
-            int cur = Profiles.homePrefs(this).getInt("idle_sec", 20), sel = 2;
+            int[] secs = {0, 30, 60, 120, 300, 600, 1800};
+            String[] names = {"Desligado", "30 segundos", "1 minuto", "2 minutos", "5 minutos  (padrão)",
+                    "10 minutos", "30 minutos"};
+            int cur = Profiles.homePrefs(this).getInt("idle_sec", MainActivity.IDLE_DEFAULT), sel = 4;
             for (int i = 0; i < secs.length; i++) if (secs[i] == cur) sel = i;
-            dialog("Tela cheia").setMessage(null).setSingleChoiceItems(names, sel, (d, w) -> {
+            dialog("Protetor de tela").setMessage(null).setSingleChoiceItems(names, sel, (d, w) -> {
                 Profiles.homePrefs(this).edit().putInt("idle_sec", secs[w]).apply();
                 refreshAll();
                 d.dismiss();

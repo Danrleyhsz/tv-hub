@@ -3842,11 +3842,15 @@ public class MainActivity extends Activity {
     float idleScrollY, idleInfoY, idleDotsY;
     boolean idleOverviewShown;
 
-    /** Seconds without input before the dock slides away (Settings -> Home); 0 = never. */
+    /** Seconds without input before the screensaver takes over (Settings -> Home); 0 = never. */
+    static final int IDLE_DEFAULT = 300;
+
     int idleSeconds() {
-        int sec = Profiles.homePrefs(this).getInt("idle_sec", 20);
-        // Hume carousel chosen as the screensaver: it always takes over when idle.
-        if (sec == 0 && !getSharedPreferences("screensaver", MODE_PRIVATE).getBoolean("allow", true)) sec = 20;
+        int sec = Profiles.homePrefs(this).getInt("idle_sec", IDLE_DEFAULT);
+        // The launcher is the chosen screensaver: it always takes over when idle.
+        if (sec == 0 && !getSharedPreferences("screensaver", MODE_PRIVATE).getBoolean("allow", true)) {
+            sec = IDLE_DEFAULT;
+        }
         return sec;
     }
 
