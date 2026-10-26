@@ -34,8 +34,8 @@ Windows e para usar `jar` quando não existe `zip` (Git Bash não traz `zip`).
 - [x] Fundo de paisagem (`Paisagens` em Ajustes → Home → Background), trocando a cada 15 min com
       fade de 1,2 s.
 - [x] Clima, previsão e textos da home em português.
-- [x] Protetor de tela no gabarito dos prints 05/06: depois de 20 s parado (Ajustes → Home →
-      "Full-screen carousel when idle"), a paisagem toma a tela inteira e fica só um relógio
+- [x] Protetor de tela no gabarito dos prints 05/06: depois de 5 min parado (Ajustes → Tela
+      inicial → "Protetor de tela depois de"), a paisagem toma a tela inteira e fica só um relógio
       pequeno com a data no canto superior esquerdo. Qualquer tecla volta pra home.
 - [x] Interface em português: assistente de primeira execução, ajustes, central de controle,
       busca, perfis, permissões e avisos.
