@@ -42,12 +42,13 @@ public final class Ui {
 
     /**
      * Inter (OFL, bundled): the closest open font to Apple's SF. "display" is Inter Display Bold for
-     * large titles; "regular", "medium", "semibold" for UI and body text.
+     * large titles, "thin" is Inter Display Thin for the home clock; "regular", "medium", "semibold" for UI and body text.
      */
     public static android.graphics.Typeface font(Context c, String weight) {
         android.graphics.Typeface t = FONTS.get(weight);
         if (t == null) {
-            String file = weight.equals("display") ? "InterDisplay-Bold" : weight.equals("medium") ? "Inter-Medium"
+            String file = weight.equals("display") ? "InterDisplay-Bold" : weight.equals("thin") ? "InterDisplay-Thin"
+                    : weight.equals("medium") ? "Inter-Medium"
                     : weight.equals("semibold") ? "Inter-SemiBold" : "Inter-Regular";
             try {
                 t = android.graphics.Typeface.createFromAsset(c.getAssets(), "fonts/" + file + ".ttf");

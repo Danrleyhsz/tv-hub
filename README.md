@@ -1,68 +1,61 @@
-# Hume Launcher
+# TV Hub
 
-A tvOS 26–style home screen for Android TV, by Petrobot. It replaces the stock launcher with one
-modelled on Apple TV — glass dock, full-screen carousel, Control Center, profiles — and is built to
-stay smooth on low-end TV boxes like the Xiaomi Mi Box. Plain Java, no Gradle, no third-party
-runtime libraries; the APK is about 1 MB.
+Launcher para a TV TCL (Android TV 12), no visual do vídeo "TV hack — part 1": foto de paisagem em
+tela cheia, relógio fino no canto, clima de Imperatriz-MA, pílula de dica e uma dock de vidro com
+os apps. Sem recomendação, sem banner, sem patrocinado.
 
-![Home screen](docs/images/home-dock-glass.jpg)
+![Tela inicial](docs/tvhub-home.png)
 
-## Features
+## O que tem
 
-- **Home**: Liquid Glass dock, 6-across app grid in Apple's measured proportions, focus lift and
-  zoom-to-open, More Apps folder, five backgrounds.
-- **Carousel**: Continue Watching first (Resume / Remove, expires after 7 days), then Indian news
-  (India, your city, world) and rotating recommendations from your streaming services. Goes full
-  screen when Home is idle.
-- **Status row**: internet indicator, time, Refresh, Search, Control Center, profile avatar.
-- **Search**: apps, settings and inputs instantly, plus movies and shows on every streaming service
-  in India (Indian titles included, typed in English or Hindi, or spoken) with **Open** in the app
-  you have or **Get** for the one you don't.
-- **Weather**: a glass pill with a 5-day forecast panel (Open-Meteo, MET Norway or wttr.in — no keys).
-- **Control Center**: Power Off, Memory/Clean, Wi-Fi, Do Not Disturb, audio, sleep timer, inputs,
-  settings, search.
-- **Profiles**: up to 3, each with its own layout, background and carousel; full-screen switcher.
-- **Inputs**: HDMI/AV/TV picker with connector icons, on TVs that have inputs.
-- **Presentation mode**: send images, videos and webpages from a browser and loop them full screen;
-  can start with the TV (signage).
-- **First-time setup** in Apple's style, **multi-page Settings**, permissions asked **on screen**
-  (adb only as a last resort), system or carousel **screensaver**, and Android TV navigation sounds.
-- **AirPlay**: works with the open-source [AirPlay Server](https://github.com/jqssun/android-airplay-server)
-  app; Hume keeps the receiver visible to Macs and iPhones after the TV sleeps.
+- **Tela inicial** no gabarito: relógio grande em Inter Display Thin, data em português, clima em
+  °C com a cidade em caixa alta, pílula de dica tirada da previsão e dock de vidro.
+- **Fundo de paisagem** que troca a cada 15 minutos com fade de 1,2 s, lido de uma pasta na TV.
+- **Protetor de tela**: depois de 20 s parado a paisagem toma a tela inteira, com um relógio
+  pequeno e a data. Qualquer tecla volta.
+- **Central de controle**, busca (apps, ajustes, filmes e séries), entradas HDMI, perfis, timer de
+  sono e protetor — tudo em português.
 
-Full list with screenshots: **[docs/features.md](docs/features.md)**.
+## Como usar
 
-## Quick start
+Precisa de: JDK **17**, Android SDK com build-tools 34.0.0 e platform android-34, e a TV com
+depuração por Wi-Fi ligada. O IP da TV está no topo dos `.bat`.
 
-```sh
-# needs JDK 17+ and Android SDK build-tools 34.0.0 + platform android-34 (see getting started)
-./build.sh                                   # → build/tvos-home.apk
-adb connect <tv-ip>:5555
-adb install -r build/tvos-home.apk
-adb shell am start -n com.petrobot.hume/.MainActivity
+```bash
+export ANDROID_HOME="$LOCALAPPDATA/Android/Sdk"
+export JAVA_HOME="/c/Program Files/Eclipse Adoptium/jdk-17.0.20.101-hotspot"
+bash check.sh     # checagens fora do aparelho
+bash build.sh     # gera build/tvos-home.apk
 ```
 
-## Documentation
+Depois, no Explorer:
 
-| | |
+| Script | O que faz |
 |---|---|
-| **[Getting started](docs/getting-started.md)** | Install the tools, build, run on a TV or the emulator, developer shortcuts |
-| **[Features](docs/features.md)** | Everything Hume does, by area |
-| **[Install and set up](docs/install.md)** | Make it the home screen, permissions, undo |
-| **[Presentation mode](docs/presentation.md)** | Sending content from a browser, the player, the web API |
-| **[Architecture](docs/architecture.md)** | Code map, build, design decisions, performance |
-| **[Contributing](CONTRIBUTING.md)** | Workflow, code style, design and performance rules, testing, pull requests |
+| `instalar.bat` | Instala o APK na TV e abre. **Não** mexe na tela inicial. |
+| `definir-como-padrao.bat` | Faz o botão Home abrir o TV Hub, desativando (sem apagar) as outras telas iniciais. Anota o que desativou. |
+| `restaurar.bat` | Desfaz tudo: reativa o que foi desativado, devolve o botão Home para a tela de fábrica e desinstala o TV Hub. |
 
-## Requirements
+O `restaurar.bat` funciona mesmo que o TV Hub nunca tenha virado padrão.
 
-Android TV 7.0+ (API 24). Developed and tested on a Xiaomi Mi Box 4 (Android 12) and an Android 9
-TV with 1 GB RAM.
+> JDK 17, não o 21: o `d8` do build-tools 34 estoura NullPointerException com as classes anônimas
+> compiladas pelo javac 21.
 
-## License
+## Fotos do fundo
 
-Apache License 2.0 — see [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Ficam numa pasta do próprio app, sem precisar de permissão de armazenamento:
 
-## Credits
+```bash
+adb -s 192.168.1.147:5555 push foto.jpg /sdcard/Android/data/com.petrobot.hume/files/Pictures/
+```
 
-Inter font (SIL OFL) · Nayuki QR Code generator (MIT) · weather from Open-Meteo, MET Norway and
-wttr.in · recommendations from JustWatch / TMDB / Stremio Cinemeta · news from Indian newsrooms' public RSS feeds.
+Com a pasta vazia o fundo cai no gradiente Aurora. **Desinstalar ou limpar os dados apaga a
+pasta** — guarde as fotos no PC.
+
+## Base e licença
+
+Fork do [Hume Launcher](https://github.com/petrobot-admin/hume-launcher), de Petrobot, sob
+[Apache 2.0](LICENSE) — a mesma licença vale para este fork. Veja o [NOTICE](NOTICE) para os
+componentes de terceiros (fonte Inter sob SIL OFL, gerador de QR Code de Project Nayuki sob MIT).
+
+O que mudou em cima da base está no [PROGRESS.md](PROGRESS.md).

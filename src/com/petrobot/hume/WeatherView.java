@@ -16,7 +16,7 @@ import android.view.View;
  * and a 5-day list with temperature range bars coloured from cool blue to hot red.
  */
 final class WeatherView extends View {
-    static final float COMPACT_W = 214, COMPACT_H = 52, FULL_W = 380, FULL_H = 456;
+    static final float COMPACT_W = 248, COMPACT_H = 58, FULL_W = 380, FULL_H = 456;
 
     final boolean full;
     final float u;
@@ -43,39 +43,39 @@ final class WeatherView extends View {
     @Override
     protected void onDraw(Canvas c) {
         if (data == null) {
-            text(c, "Getting the weather\u2026", getWidth() / 2f, getHeight() / 2f + 5 * u, 13, medium, 0.7f, Paint.Align.CENTER);
+            text(c, "Buscando o tempo\u2026", getWidth() / 2f, getHeight() / 2f + 5 * u, 13, medium, 0.7f, Paint.Align.CENTER);
             return;
         }
         if (full) drawFull(c);
         else drawCompact(c);
     }
 
-    /** A small glass pill: icon, temperature, then condition over place and high/low. */
+    /** A small glass pill: icon, temperature, then the place over condition and high/low. */
     private void drawCompact(Canvas c) {
         Weather.Data d = data;
-        float h = getHeight(), pad = 12 * u, is = 30 * u;
+        float h = getHeight(), pad = 12 * u, is = 32 * u;
         icon(c, d.code, d.day, pad, (h - is) / 2f, is);
         float tx = pad + is + 6 * u;
-        float tw = text(c, d.temp + "\u00b0", tx, h / 2f + 8 * u, 22, regular, 1f, Paint.Align.LEFT);
-        float cx = tx + tw + 9 * u;
-        text(c, Weather.describe(d.code, d.day), cx, h / 2f - 2 * u, 11.5f, semibold, 1f, Paint.Align.LEFT);
-        text(c, (d.place.isEmpty() ? "" : d.place + "  ") + "H:" + d.max + "\u00b0 L:" + d.min + "\u00b0",
-                cx, h / 2f + 12 * u, 11.5f, medium, 0.7f, Paint.Align.LEFT);
+        float tw = text(c, d.temp + "\u00b0", tx, h / 2f + 9 * u, 26, regular, 1f, Paint.Align.LEFT);
+        float cx = tx + tw + 11 * u;
+        text(c, d.place.toUpperCase(Weather.PT), cx, h / 2f - 3 * u, 10, semibold, 0.6f, Paint.Align.LEFT);
+        text(c, Weather.describe(d.code, d.day) + "  \u00b7  " + d.max + "\u00b0 / " + d.min + "\u00b0",
+                cx, h / 2f + 12 * u, 11.5f, medium, 0.9f, Paint.Align.LEFT);
     }
 
     private void drawFull(Canvas c) {
         Weather.Data d = data;
         float w = getWidth(), pad = 20 * u, x0 = pad, x1 = w - pad, mid = w / 2f;
         // Header
-        text(c, d.place.isEmpty() ? "My Location" : d.place, mid, pad + 14 * u, 17, semibold, 1f, Paint.Align.CENTER);
+        text(c, d.place.isEmpty() ? "Minha localiza\u00e7\u00e3o" : d.place, mid, pad + 14 * u, 17, semibold, 1f, Paint.Align.CENTER);
         text(c, d.temp + "\u00b0", mid + 5 * u, pad + 66 * u, 54, regular, 1f, Paint.Align.CENTER);
         text(c, Weather.describe(d.code, d.day), mid, pad + 86 * u, 14.5f, medium, 0.85f, Paint.Align.CENTER);
         text(c, "H:" + d.max + "\u00b0  L:" + d.min + "\u00b0", mid, pad + 104 * u, 13.5f, medium, 0.85f, Paint.Align.CENTER);
 
         // Hourly
         float y = pad + 126 * u;
-        text(c, "HOURLY FORECAST", x0, y, 11.5f, semibold, 0.55f, Paint.Align.LEFT);
-        text(c, "Humidity " + d.humidity + "%  \u00b7  Wind " + d.wind + " " + d.windUnit, x1, y, 11.5f, medium, 0.55f, Paint.Align.RIGHT);
+        text(c, "PR\u00d3XIMAS HORAS", x0, y, 11.5f, semibold, 0.55f, Paint.Align.LEFT);
+        text(c, "Umidade " + d.humidity + "%  \u00b7  Vento " + d.wind + " " + d.windUnit, x1, y, 11.5f, medium, 0.55f, Paint.Align.RIGHT);
         hairline(c, x0, x1, y + 8 * u);
         int hn = Math.min(6, d.hours.size());
         float hw = (x1 - x0) / Math.max(1, hn);
@@ -89,7 +89,7 @@ final class WeatherView extends View {
 
         // 5-day list with range bars
         y += 102 * u;
-        text(c, "5-DAY FORECAST", x0, y, 11.5f, semibold, 0.55f, Paint.Align.LEFT);
+        text(c, "PR\u00d3XIMOS 5 DIAS", x0, y, 11.5f, semibold, 0.55f, Paint.Align.LEFT);
         int lo = Integer.MAX_VALUE, hi = Integer.MIN_VALUE;
         for (Weather.Day day : d.days) {
             lo = Math.min(lo, day.min);
@@ -137,7 +137,7 @@ final class WeatherView extends View {
         }
         // Source and time of the last update.
         String when = android.text.format.DateFormat.getTimeFormat(getContext()).format(new java.util.Date(d.fetchedAt));
-        text(c, Weather.sourceName(d.source) + "  \u00b7  Updated " + when, mid, getHeight() - 14 * u, 11.5f, medium, 0.5f, Paint.Align.CENTER);
+        text(c, Weather.sourceName(d.source) + "  \u00b7  Atualizado " + when, mid, getHeight() - 14 * u, 11.5f, medium, 0.5f, Paint.Align.CENTER);
     }
 
     /** Apple Weather's palette: blue (cold) -> teal -> green -> yellow -> orange -> red (hot). */

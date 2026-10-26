@@ -40,17 +40,17 @@ public class SettingsActivity extends Activity {
         if (token != null && !token.trim().isEmpty()) {
             Suggestions.prefs(this).edit().putString(Suggestions.K_TOKEN, token.trim()).apply();
             Suggestions.changed(this);
-            Toast.makeText(this, "TMDB connected", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "TMDB conectado", Toast.LENGTH_SHORT).show();
         }
         build();
-        String pg = getIntent().getStringExtra("page");  // adb: --es page "Top Shelf"
+        String pg = getIntent().getStringExtra("page");  // adb: --es page "Prateleira de cima"
         if (pg != null) show(pg);
     }
 
     // tvOS-style pages: the main list opens a page per section; Back returns to the main list.
-    static final String ROOT = "root", PROFILES = "Profiles", SHELF = "Top Shelf", PRESENT = "Presentation",
-            INPUTS = "Inputs", WEATHER = "Weather", WATCHING = "Continue Watching", HOME = "Home",
-            PERMS = "Permissions", ABOUT = "About";
+    static final String ROOT = "root", PROFILES = "Perfis", SHELF = "Prateleira de cima", PRESENT = "Apresentação",
+            INPUTS = "Entradas", WEATHER = "Clima", WATCHING = "Continuar assistindo", HOME = "Tela inicial",
+            PERMS = "Permissões", ABOUT = "Sobre";
 
     FrameLayout leftPane;
     ScrollView scroller;
@@ -169,7 +169,7 @@ public class SettingsActivity extends Activity {
         left.addView(icon, new LinearLayout.LayoutParams(Ui.px(this, 150), Ui.px(this, 90)));
 
         TextView title = new TextView(this);
-        title.setText(p.equals(ROOT) ? "Settings" : p);
+        title.setText(p.equals(ROOT) ? "Ajustes" : p);
         title.setTextColor(Color.WHITE);
         title.setTypeface(Ui.font(this, "display"));
         title.setLetterSpacing(-0.02f);
@@ -181,7 +181,7 @@ public class SettingsActivity extends Activity {
 
         if (p.equals(ROOT)) {
             TextView by = new TextView(this);
-            by.setText("Hume Launcher by Petrobot");
+            by.setText("Base: Hume Launcher, de Petrobot");
             by.setTextColor(0x8CFFFFFF);
             by.setTypeface(Ui.font(this, "regular"));
             Ui.textSize(by, 13);
@@ -228,17 +228,17 @@ public class SettingsActivity extends Activity {
         nav(PROFILES, () -> Profiles.current(this).name);
         nav(SHELF, () -> {
             switch (Suggestions.shelf(this)) {
-                case Suggestions.SHELF_RECS: return "Recommendations";
-                case Suggestions.SHELF_NEWS: return "News";
-                case Suggestions.SHELF_NONE: return "Off";
-                default: return "Recommendations & News";
+                case Suggestions.SHELF_RECS: return "Recomendações";
+                case Suggestions.SHELF_NEWS: return "Notícias";
+                case Suggestions.SHELF_NONE: return "Desligado";
+                default: return "Recomendações e notícias";
             }
         });
-        nav(PRESENT, () -> com.petrobot.hume.present.Presenter.enabled(this) ? "On" : "Off");
-        if (!Inputs.list(this).isEmpty()) nav(INPUTS, () -> Inputs.showCard(this) ? "On" : "Off");
-        nav(WEATHER, () -> !Weather.enabled(this) ? "Off" : Weather.place(this).isEmpty() ? "On" : Weather.place(this));
-        nav(WATCHING, () -> !Profiles.homePrefs(this).getBoolean("cw_enabled", true) ? "Off" : MediaWatchService.granted(this) ? "On"
-                : Perms.listenerSupported(this) ? "Needs permission" : "Not on this TV");
+        nav(PRESENT, () -> com.petrobot.hume.present.Presenter.enabled(this) ? "Ligado" : "Desligado");
+        if (!Inputs.list(this).isEmpty()) nav(INPUTS, () -> Inputs.showCard(this) ? "Ligado" : "Desligado");
+        nav(WEATHER, () -> !Weather.enabled(this) ? "Desligado" : Weather.place(this).isEmpty() ? "Ligado" : Weather.place(this));
+        nav(WATCHING, () -> !Profiles.homePrefs(this).getBoolean("cw_enabled", false) ? "Desligado" : MediaWatchService.granted(this) ? "Ligado"
+                : Perms.listenerSupported(this) ? "Precisa de permissão" : "Não existe nesta TV");
         nav(HOME, () -> {
             String k = Profiles.homePrefs(this).getString("wallpaper", "aurora");
             int i = java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k);
@@ -247,88 +247,88 @@ public class SettingsActivity extends Activity {
         nav(PERMS, () -> {
             int missing = (Perms.hasListener(this) || !Perms.listenerSupported(this) ? 0 : 1) + (Perms.hasLocation(this) ? 0 : 1)
                     + (Perms.hasAdmin(this) || !Perms.adminSupported(this) ? 0 : 1) + (Perms.isDefaultHome(this) ? 0 : 1);
-            return missing == 0 ? "All allowed" : missing + " to allow";
+            return missing == 0 ? "Tudo permitido" : missing + " a permitir";
         });
-        nav(ABOUT, () -> "Version " + version());
-        row("TV Settings", () -> "", () -> Suggestions.start(this, new Intent(Settings.ACTION_SETTINGS)));
+        nav(ABOUT, () -> "Versão " + version());
+        row("Ajustes da TV", () -> "", () -> Suggestions.start(this, new Intent(Settings.ACTION_SETTINGS)));
     }
 
     void pageProfiles() {
-        row("Current profile", () -> Profiles.current(this).name, () -> {
+        row("Perfil atual", () -> Profiles.current(this).name, () -> {
             startActivity(new Intent(this, MainActivity.class).putExtra("pick_profile", true)
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             finish();
         });
-        row("Show profiles on wake", () -> Profiles.askOnWake(this) ? "On" : "Off",
+        row("Perguntar o perfil ao ligar", () -> Profiles.askOnWake(this) ? "Ligado" : "Desligado",
                 () -> Profiles.setAskOnWake(this, !Profiles.askOnWake(this)));
     }
 
     void pageShelf() {
-        row("Show in carousel", () -> {
+        row("Mostrar no carrossel", () -> {
             switch (Suggestions.shelf(this)) {
-                case Suggestions.SHELF_RECS: return "Recommendations";
-                case Suggestions.SHELF_NEWS: return "News";
-                case Suggestions.SHELF_NONE: return "Nothing";
-                default: return "Both";
+                case Suggestions.SHELF_RECS: return "Recomendações";
+                case Suggestions.SHELF_NEWS: return "Notícias";
+                case Suggestions.SHELF_NONE: return "Nada";
+                default: return "Os dois";
             }
         }, () -> {
             String[] keys = {Suggestions.SHELF_BOTH, Suggestions.SHELF_RECS, Suggestions.SHELF_NEWS, Suggestions.SHELF_NONE};
-            String[] names = {"Recommendations & News", "Recommendations", "News", "Nothing"};
+            String[] names = {"Recomendações e notícias", "Recomendações", "Notícias", "Nada"};
             int sel = Math.max(0, java.util.Arrays.asList(keys).indexOf(Suggestions.shelf(this)));
-            dialog("Show in carousel").setSingleChoiceItems(names, sel, (d, w) -> {
+            dialog("Mostrar no carrossel").setSingleChoiceItems(names, sel, (d, w) -> {
                 Suggestions.setShelf(this, keys[w]);
                 d.dismiss();
                 show(SHELF);
             }).show();
         });
         if (Suggestions.showRecs(this)) {
-            section("Recommendations");
-            row("Source", () -> Suggestions.sourceName(Suggestions.source(this)), this::chooseSource);
-            row("Content", () -> {
+            section("Recomendações");
+            row("Fonte", () -> Suggestions.sourceName(Suggestions.source(this)), this::chooseSource);
+            row("Conteúdo", () -> {
                 String t = Suggestions.types(this);
-                return t.equals("movie") ? "Movies" : t.equals("tv") ? "TV Series" : "Movies & Series";
+                return t.equals("movie") ? "Filmes" : t.equals("tv") ? "Séries" : "Filmes e séries";
             }, this::chooseTypes);
         }
         if (Suggestions.showRecs(this) && Suggestions.source(this).equals(Suggestions.SRC_STREMIO)) {
-            row("Opens in", () -> {
+            row("Abre no", () -> {
                 Suggestions.Provider p = Suggestions.stremioApp(this);
-                return Suggestions.installed(this, p.pkg) ? p.name : "Stremio (not installed)";
-            }, () -> Toast.makeText(this, "Titles open in Stremio, or in Nuvio when only Nuvio is installed.",
+                return Suggestions.installed(this, p.pkg) ? p.name : "Stremio (não instalado)";
+            }, () -> Toast.makeText(this, "Os títulos abrem no Stremio, ou no Nuvio quando só o Nuvio está instalado.",
                     Toast.LENGTH_LONG).show());
         } else if (Suggestions.showRecs(this)) {
-            row("Streaming services", () -> {
+            row("Serviços de streaming", () -> {
                 int n = Suggestions.providers(this).size();
-                return n == Suggestions.PROVIDERS.size() ? "All" : n + " selected";
+                return n == Suggestions.PROVIDERS.size() ? "Todos" : n + " escolhidos";
             }, this::chooseProviders);
-            row("Languages", () -> {
+            row("Idiomas", () -> {
                 Set<String> l = Suggestions.languages(this);
-                if (l.isEmpty()) return "Any";
+                if (l.isEmpty()) return "Todos";
                 List<String> names = new ArrayList<>();
                 for (int i = 0; i < Suggestions.LANG_CODES.length; i++) {
                     if (l.contains(Suggestions.LANG_CODES[i])) names.add(Suggestions.LANG_NAMES[i]);
                 }
-                return names.size() > 2 ? names.size() + " languages" : String.join(", ", names);
+                return names.size() > 2 ? names.size() + " idiomas" : String.join(", ", names);
             }, this::chooseLanguages);
-            row("TMDB token", () -> Suggestions.hasToken(this) ? "Connected" : "Not set", this::enterToken);
+            row("Token do TMDB", () -> Suggestions.hasToken(this) ? "Conectado" : "Sem token", this::enterToken);
         }
         if (Suggestions.showNews(this)) {
-            section("News");
-            row("Newsrooms", () -> {
+            section("Notícias");
+            row("Jornais", () -> {
                 int n = News.sources(this).size();
-                return n == News.SOURCES.size() ? "All" : n + " selected";
+                return n == News.SOURCES.size() ? "Todos" : n + " escolhidos";
             }, this::chooseNewsrooms);
-            row("Local news for", () -> News.city(this).isEmpty() ? "Unknown" : News.city(this), () ->
-                    Toast.makeText(this, "Local news follows the weather location (Settings \u2192 Weather \u2192 Location).",
+            row("Notícias locais de", () -> News.city(this).isEmpty() ? "Desconhecida" : News.city(this), () ->
+                    Toast.makeText(this, "As notícias locais seguem a cidade do clima (Ajustes \u2192 Clima \u2192 Localização).",
                             Toast.LENGTH_LONG).show());
-            row("Update news every", () -> News.refreshMinutes(this) + " minutes", () -> {
+            row("Atualizar notícias a cada", () -> News.refreshMinutes(this) + " minutos", () -> {
                 int[] mins = News.REFRESH_CHOICES;
                 String[] names = new String[mins.length];
                 int sel = 1;
                 for (int i = 0; i < mins.length; i++) {
-                    names[i] = mins[i] + " minutes" + (mins[i] == 30 ? "  (default)" : "");
+                    names[i] = mins[i] + " minutos" + (mins[i] == 30 ? "  (padrão)" : "");
                     if (mins[i] == News.refreshMinutes(this)) sel = i;
                 }
-                dialog("Update news every").setSingleChoiceItems(names, sel, (d, w) -> {
+                dialog("Atualizar notícias a cada").setSingleChoiceItems(names, sel, (d, w) -> {
                     Suggestions.prefs(this).edit().putInt(News.K_REFRESH, mins[w]).apply();
                     refreshAll();
                     d.dismiss();
@@ -336,14 +336,14 @@ public class SettingsActivity extends Activity {
             });
         }
         if (Suggestions.enabled(this)) {
-            section("Carousel");
-            row("Auto-advance", () -> {
+            section("Carrossel");
+            row("Passar sozinho", () -> {
                 int sec = Suggestions.advanceSeconds(this);
-                return sec == 0 ? "Off" : "Every " + sec + " s";
+                return sec == 0 ? "Desligado" : "A cada " + sec + " s";
             }, this::chooseAdvance);
-            row("Refresh now", () -> "", () -> {
+            row("Atualizar agora", () -> "", () -> {
                 Suggestions.changed(this);
-                Toast.makeText(this, "The carousel will refresh on Home", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "O carrossel vai atualizar na tela inicial", Toast.LENGTH_SHORT).show();
             });
         }
     }
@@ -356,32 +356,32 @@ public class SettingsActivity extends Activity {
             names[i] = News.SOURCES.get(i).name;
             on[i] = cur.contains(News.SOURCES.get(i).id);
         }
-        dialog("Newsrooms").setMultiChoiceItems(names, on, (d, w, checked) -> on[w] = checked)
-                .setPositiveButton("Done", (d, w) -> {
+        dialog("Jornais").setMultiChoiceItems(names, on, (d, w, checked) -> on[w] = checked)
+                .setPositiveButton("Pronto", (d, w) -> {
                     Set<String> ids = new java.util.HashSet<>();
                     for (int i = 0; i < on.length; i++) if (on[i]) ids.add(News.SOURCES.get(i).id);
                     if (ids.isEmpty()) ids.add("toi");
                     News.setSources(this, ids);
                     Suggestions.changed(this);
                     refreshAll();
-                }).setNegativeButton("Cancel", null).show();
+                }).setNegativeButton("Cancelar", null).show();
     }
 
     void pagePresentation() {
-        row("Presentation mode", () -> com.petrobot.hume.present.Presenter.enabled(this) ? "On" : "Off", () -> {
+        row("Modo apresentação", () -> com.petrobot.hume.present.Presenter.enabled(this) ? "Ligado" : "Desligado", () -> {
             boolean on = !com.petrobot.hume.present.Presenter.enabled(this);
             com.petrobot.hume.present.Presenter.set(this, com.petrobot.hume.present.Presenter.KEY_ENABLED, on);
-            if (on) Toast.makeText(this, "Presentation is on. Send content from a browser.", Toast.LENGTH_LONG).show();
+            if (on) Toast.makeText(this, "A apresentação está ligada. Envie conteúdo pelo navegador.", Toast.LENGTH_LONG).show();
         });
-        row("Start on boot", () -> com.petrobot.hume.present.Presenter.startOnBoot(this) ? "On" : "Off", () ->
+        row("Abrir ao ligar a TV", () -> com.petrobot.hume.present.Presenter.startOnBoot(this) ? "Ligado" : "Desligado", () ->
                 com.petrobot.hume.present.Presenter.set(this, com.petrobot.hume.present.Presenter.KEY_BOOT,
                         !com.petrobot.hume.present.Presenter.startOnBoot(this)));
-        row("Keep screen awake", () -> com.petrobot.hume.present.Presenter.keepAwake(this) ? "On" : "Off", () ->
+        row("Manter a tela acesa", () -> com.petrobot.hume.present.Presenter.keepAwake(this) ? "Ligado" : "Desligado", () ->
                 com.petrobot.hume.present.Presenter.set(this, com.petrobot.hume.present.Presenter.KEY_AWAKE,
                         !com.petrobot.hume.present.Presenter.keepAwake(this)));
-        row("Address & pairing code", () -> com.petrobot.hume.present.Presenter.enabled(this)
-                ? com.petrobot.hume.present.Presenter.address().replace("http://", "") : "Turn on first", this::showPresentInfo);
-        row("Start presentation now", () -> "", () -> {
+        row("Endereço e código de pareamento", () -> com.petrobot.hume.present.Presenter.enabled(this)
+                ? com.petrobot.hume.present.Presenter.address().replace("http://", "") : "Ligue primeiro", this::showPresentInfo);
+        row("Iniciar apresentação agora", () -> "", () -> {
             if (!com.petrobot.hume.present.Presenter.enabled(this)) {
                 com.petrobot.hume.present.Presenter.set(this, com.petrobot.hume.present.Presenter.KEY_ENABLED, true);
             }
@@ -390,60 +390,60 @@ public class SettingsActivity extends Activity {
     }
 
     void pageInputs() {
-        row("Inputs card on Home", () -> Inputs.showCard(this) ? "On" : "Off", () ->
+        row("Card de entradas na tela inicial", () -> Inputs.showCard(this) ? "Ligado" : "Desligado", () ->
                 Inputs.prefs(this).edit().putBoolean(Inputs.K_CARD, !Inputs.showCard(this)).apply());
-        section("This TV");
+        section("Esta TV");
         for (Inputs.Input in : Inputs.list(this)) {
-            row(in.label, () -> in.disconnected ? "Not connected" : "", () -> {
-                if (!Inputs.open(this, in)) Toast.makeText(this, "Can't switch to " + in.label, Toast.LENGTH_SHORT).show();
+            row(in.label, () -> in.disconnected ? "Sem conexão" : "", () -> {
+                if (!Inputs.open(this, in)) Toast.makeText(this, "Não dá pra trocar para " + in.label, Toast.LENGTH_SHORT).show();
             });
         }
     }
 
     void pageWeather() {
-        row("Show weather", () -> Weather.enabled(this) ? "On" : "Off", () -> {
+        row("Mostrar o clima", () -> Weather.enabled(this) ? "Ligado" : "Desligado", () -> {
             Weather.prefs(this).edit().putBoolean(Weather.K_ENABLED, !Weather.enabled(this)).apply();
             Weather.changed(this);
         });
-        row("Location", () -> Weather.manual(this) ? Weather.place(this)
-                : Weather.place(this).isEmpty() ? "Automatic" : "Automatic \u00b7 " + Weather.place(this), this::chooseLocation);
-        row("Temperature", () -> {
+        row("Localização", () -> Weather.manual(this) ? Weather.place(this)
+                : Weather.place(this).isEmpty() ? "Automática" : "Automática \u00b7 " + Weather.place(this), this::chooseLocation);
+        row("Temperatura", () -> {
             String u = Weather.prefs(this).getString(Weather.K_UNITS, "auto");
-            return u.equals("c") ? "Celsius" : u.equals("f") ? "Fahrenheit" : "Automatic";
+            return u.equals("c") ? "Celsius" : u.equals("f") ? "Fahrenheit" : "Automática";
         }, () -> {
             String[] keys = {"auto", "c", "f"};
-            String[] names = {"Automatic", "Celsius (\u00b0C)", "Fahrenheit (\u00b0F)"};
+            String[] names = {"Automática", "Celsius (\u00b0C)", "Fahrenheit (\u00b0F)"};
             String cur = Weather.prefs(this).getString(Weather.K_UNITS, "auto");
             int sel = cur.equals("c") ? 1 : cur.equals("f") ? 2 : 0;
-            dialog("Temperature").setSingleChoiceItems(names, sel, (d, w) -> {
+            dialog("Temperatura").setSingleChoiceItems(names, sel, (d, w) -> {
                 Weather.prefs(this).edit().putString(Weather.K_UNITS, keys[w]).apply();
                 Weather.changed(this);
                 refreshAll();
                 d.dismiss();
             }).show();
         });
-        section("Updates");
-        row("Source", () -> Weather.sourceName(Weather.source(this)), () -> {
+        section("Atualização");
+        row("Fonte", () -> Weather.sourceName(Weather.source(this)), () -> {
             String[] keys = Weather.SOURCES;
-            String[] names = {"Open-Meteo", "MET Norway (Yr)", "wttr.in  (3 days)"};
+            String[] names = {"Open-Meteo", "MET Norway (Yr)", "wttr.in  (3 dias)"};
             int sel = java.util.Arrays.asList(keys).indexOf(Weather.source(this));
-            dialog("Weather source").setSingleChoiceItems(names, Math.max(0, sel), (d, w) -> {
+            dialog("Fonte do clima").setSingleChoiceItems(names, Math.max(0, sel), (d, w) -> {
                 Weather.prefs(this).edit().putString(Weather.K_SOURCE, keys[w]).apply();
                 Weather.changed(this);
                 refreshAll();
                 d.dismiss();
-                Toast.makeText(this, "If it can't be reached, the other sources are used.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Se ela não responder, as outras fontes entram no lugar.", Toast.LENGTH_LONG).show();
             }).show();
         });
-        row("Update every", () -> Weather.refreshMinutes(this) + " minutes", () -> {
+        row("Atualizar a cada", () -> Weather.refreshMinutes(this) + " minutos", () -> {
             int[] mins = Weather.REFRESH_CHOICES;
             String[] names = new String[mins.length];
             int sel = 1;
             for (int i = 0; i < mins.length; i++) {
-                names[i] = mins[i] + " minutes" + (mins[i] == 15 ? "  (default)" : "");
+                names[i] = mins[i] + " minutos" + (mins[i] == 15 ? "  (padrão)" : "");
                 if (mins[i] == Weather.refreshMinutes(this)) sel = i;
             }
-            dialog("Update weather every").setSingleChoiceItems(names, sel, (d, w) -> {
+            dialog("Atualizar o clima a cada").setSingleChoiceItems(names, sel, (d, w) -> {
                 Weather.prefs(this).edit().putInt(Weather.K_REFRESH, mins[w]).apply();
                 refreshAll();
                 d.dismiss();
@@ -452,119 +452,119 @@ public class SettingsActivity extends Activity {
     }
 
     void pageWatching() {
-        row("Show Continue Watching", () -> Profiles.homePrefs(this).getBoolean("cw_enabled", true) ? "On" : "Off", () -> {
-            boolean on = !Profiles.homePrefs(this).getBoolean("cw_enabled", true);
+        row("Mostrar continuar assistindo", () -> Profiles.homePrefs(this).getBoolean("cw_enabled", false) ? "Ligado" : "Desligado", () -> {
+            boolean on = !Profiles.homePrefs(this).getBoolean("cw_enabled", false);
             Profiles.homePrefs(this).edit().putBoolean("cw_enabled", on).apply();
-            if (!on) Toast.makeText(this, "Continue Watching titles won\u2019t appear in the carousel", Toast.LENGTH_SHORT).show();
+            if (!on) Toast.makeText(this, "Os títulos de continuar assistindo não vão aparecer no carrossel", Toast.LENGTH_SHORT).show();
         });
-        row("Access", () -> MediaWatchService.granted(this) ? "Allowed"
-                : Perms.listenerSupported(this) ? "Allow\u2026" : "Not on this TV", () -> Perms.requestListener(this));
-        row("Clear history", () -> "", () -> {
+        row("Acesso", () -> MediaWatchService.granted(this) ? "Permitido"
+                : Perms.listenerSupported(this) ? "Permitir\u2026" : "Não existe nesta TV", () -> Perms.requestListener(this));
+        row("Limpar o histórico", () -> "", () -> {
             MediaWatchService.Store.clear(this);
-            Toast.makeText(this, "Continue Watching cleared", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Histórico limpo", Toast.LENGTH_SHORT).show();
         });
     }
 
     void pageHome() {
-        row("Home screen", () -> Perms.isDefaultHome(this) ? "Hume Launcher" : "Make Hume the home screen\u2026",
+        row("Tela inicial", () -> Perms.isDefaultHome(this) ? "Launcher TV Hub" : "Usar este launcher como tela inicial\u2026",
                 () -> Perms.requestDefaultHome(this));
-        row("Background", () -> {
+        row("Fundo", () -> {
             String k = Profiles.homePrefs(this).getString("wallpaper", "aurora");
             int i = java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k);
             return MainActivity.WALL_NAMES[Math.max(0, i)];
         }, () -> {
             String k = Profiles.homePrefs(this).getString("wallpaper", "aurora");
             int cur = Math.max(0, java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k));
-            dialog("Background").setSingleChoiceItems(MainActivity.WALL_NAMES, cur, (d, w) -> {
+            dialog("Fundo").setSingleChoiceItems(MainActivity.WALL_NAMES, cur, (d, w) -> {
                 Profiles.homePrefs(this).edit().putString("wallpaper", MainActivity.WALL_KEYS[w]).apply();
                 refreshAll();
                 d.dismiss();
             }).show();
         });
-        row("Navigation sounds", () -> Clicks.enabled(this) ? "On" : "Off",
+        row("Sons de navegação", () -> Clicks.enabled(this) ? "Ligado" : "Desligado",
                 () -> Clicks.setEnabled(this, !Clicks.enabled(this)));
-        row("Full-screen carousel when idle", () -> {
+        row("Protetor de tela depois de", () -> {
             int sec = Profiles.homePrefs(this).getInt("idle_sec", 20);
-            return sec == 0 ? "Off" : "After " + sec + " s";
+            return sec == 0 ? "Desligado" : "Depois de " + sec + " s";
         }, () -> {
             int[] secs = {0, 10, 20, 30, 60};
-            String[] names = {"Off", "After 10 seconds", "After 20 seconds  (default)", "After 30 seconds", "After 1 minute"};
+            String[] names = {"Desligado", "10 segundos", "20 segundos  (padrão)", "30 segundos", "1 minuto"};
             int cur = Profiles.homePrefs(this).getInt("idle_sec", 20), sel = 2;
             for (int i = 0; i < secs.length; i++) if (secs[i] == cur) sel = i;
-            dialog("Full-screen carousel").setMessage(null).setSingleChoiceItems(names, sel, (d, w) -> {
+            dialog("Tela cheia").setMessage(null).setSingleChoiceItems(names, sel, (d, w) -> {
                 Profiles.homePrefs(this).edit().putInt("idle_sec", secs[w]).apply();
                 refreshAll();
                 d.dismiss();
             }).show();
         });
-        section("Screensaver");
-        row("Screensaver on Home", () -> screensaverAllowed() ? "System screensaver" : "Hume carousel", () -> {
-            String[] names = {"System screensaver  (" + dreamLabel() + ")", "Hume full-screen carousel"};
-            dialog("Screensaver on Home").setSingleChoiceItems(names, screensaverAllowed() ? 0 : 1, (d, w) -> {
+        section("Protetor de tela");
+        row("Protetor na tela inicial", () -> screensaverAllowed() ? "Protetor do sistema" : "Tela cheia do launcher", () -> {
+            String[] names = {"Protetor do sistema  (" + dreamLabel() + ")", "Tela cheia do launcher"};
+            dialog("Protetor na tela inicial").setSingleChoiceItems(names, screensaverAllowed() ? 0 : 1, (d, w) -> {
                 getSharedPreferences("screensaver", MODE_PRIVATE).edit().putBoolean("allow", w == 0).apply();
                 refreshAll();
                 d.dismiss();
-                Toast.makeText(this, w == 0 ? "The TV's screensaver starts when Home is idle"
-                        : "Home stays on and plays the carousel full screen instead", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, w == 0 ? "O protetor da TV entra quando a tela inicial fica parada"
+                        : "A tela inicial continua e mostra a paisagem em tela cheia", Toast.LENGTH_LONG).show();
             }).show();
         });
-        row("Screensaver", () -> dreamLabel(), this::openDreamSettings);
-        row("Start screensaver now", () -> "", () -> {
+        row("Protetor de tela", () -> dreamLabel(), this::openDreamSettings);
+        row("Ligar o protetor agora", () -> "", () -> {
             Intent i = new Intent(Intent.ACTION_MAIN).setClassName("com.android.systemui", "com.android.systemui.Somnambulator")
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            if (!Suggestions.start(this, i)) Toast.makeText(this, "This TV can't start the screensaver from an app", Toast.LENGTH_LONG).show();
+            if (!Suggestions.start(this, i)) Toast.makeText(this, "Esta TV não deixa um app ligar o protetor", Toast.LENGTH_LONG).show();
         });
-        section("Search");
-        row("Movies & TV in search", () -> Search.titlesEnabled(this) ? "On" : "Off", () -> {
+        section("Busca");
+        row("Filmes e séries na busca", () -> Search.titlesEnabled(this) ? "Ligado" : "Desligado", () -> {
             Search.prefs(this).edit().putBoolean(Search.K_TITLES, !Search.titlesEnabled(this)).apply();
             refreshAll();
         });
-        row("Recent searches", () -> Search.recent(this).isEmpty() ? "None" : "Clear", () -> {
+        row("Buscas recentes", () -> Search.recent(this).isEmpty() ? "Nenhuma" : "Limpar", () -> {
             Search.clearRecent(this);
             refreshAll();
         });
-        section("Setup");
-        row("Run setup again", () -> "", () -> startActivity(new Intent(this, SetupActivity.class)));
-        row("Reset app layout", () -> "", () -> {
+        section("Configuração");
+        row("Rodar a configuração de novo", () -> "", () -> startActivity(new Intent(this, SetupActivity.class)));
+        row("Reorganizar os apps", () -> "", () -> {
             Profiles.homePrefs(this).edit().remove("order").apply();
-            Toast.makeText(this, "Layout reset", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Apps reorganizados", Toast.LENGTH_SHORT).show();
         });
     }
 
     void pagePermissions() {
-        row("Continue Watching & Do Not Disturb", () -> Perms.hasListener(this) ? "Allowed"
-                : Perms.listenerSupported(this) ? "Allow\u2026" : "Not on this TV",
+        row("Continuar assistindo e Não perturbe", () -> Perms.hasListener(this) ? "Permitido"
+                : Perms.listenerSupported(this) ? "Permitir\u2026" : "Não existe nesta TV",
                 () -> Perms.requestListener(this));
-        row("Power Off & Sleep Timer", () -> Perms.hasAdmin(this) ? "Allowed"
-                : Perms.adminSupported(this) ? "Allow\u2026" : "Not on this TV", () -> Perms.requestAdmin(this));
-        row("Hume as the home screen", () -> Perms.isDefaultHome(this) ? "Yes" : "Set\u2026",
+        row("Desligar e timer de sono", () -> Perms.hasAdmin(this) ? "Permitido"
+                : Perms.adminSupported(this) ? "Permitir\u2026" : "Não existe nesta TV", () -> Perms.requestAdmin(this));
+        row("Launcher como tela inicial", () -> Perms.isDefaultHome(this) ? "Sim" : "Definir\u2026",
                 () -> Perms.requestDefaultHome(this));
-        row("Wi-Fi name in Control Center", () -> Perms.hasLocation(this) ? "Allowed" : "Allow\u2026",
+        row("Nome do Wi-Fi na central de controle", () -> Perms.hasLocation(this) ? "Permitido" : "Permitir\u2026",
                 () -> Perms.requestLocation(this));
     }
 
     void pageAbout() {
-        row("Hume Launcher", () -> "Version " + version(), () -> { });
-        row("Made by", () -> "Petrobot", () -> { });
-        row("Weather", () -> Weather.sourceName(Weather.source(this)), () -> { });
-        row("News", () -> News.sources(this).size() + " Indian newsrooms", () -> { });
+        row("Launcher TV Hub", () -> "Versão " + version(), () -> { });
+        row("Base", () -> "Petrobot", () -> { });
+        row("Clima", () -> Weather.sourceName(Weather.source(this)), () -> { });
+        row("Notícias", () -> News.sources(this).size() + " jornais brasileiros", () -> { });
     }
 
     boolean screensaverAllowed() {
         return getSharedPreferences("screensaver", MODE_PRIVATE).getBoolean("allow", true);
     }
 
-    /** The TV's chosen screensaver (readable without permission), e.g. "Aerial Views". */
+    /** The TV's chosen screensaver (readable without permission), e.g. "Vistas aéreas". */
     String dreamLabel() {
         String comp = Settings.Secure.getString(getContentResolver(), "screensaver_components");
-        if ("0".equals(Settings.Secure.getString(getContentResolver(), "screensaver_enabled"))) return "Off in TV settings";
-        if (comp == null || comp.isEmpty()) return "TV default";
+        if ("0".equals(Settings.Secure.getString(getContentResolver(), "screensaver_enabled"))) return "Desligado nos ajustes da TV";
+        if (comp == null || comp.isEmpty()) return "Padrão da TV";
         android.content.ComponentName cn = android.content.ComponentName.unflattenFromString(comp.split(",")[0]);
-        if (cn == null) return "TV default";
+        if (cn == null) return "Padrão da TV";
         try {
             return getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(cn.getPackageName(), 0)).toString();
         } catch (Exception e) {
-            return "TV default";
+            return "Padrão da TV";
         }
     }
 
@@ -578,7 +578,7 @@ public class SettingsActivity extends Activity {
             if (l == null) l = getPackageManager().getLaunchIntentForPackage(cn.getPackageName());
             if (l != null && Suggestions.start(this, l)) return;
         }
-        Toast.makeText(this, "Choose the screensaver in TV Settings \u2192 Device Preferences \u2192 Screen saver", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Escolha o protetor em Ajustes da TV \u2192 Preferências do dispositivo \u2192 Protetor de tela", Toast.LENGTH_LONG).show();
         Suggestions.start(this, new Intent(Settings.ACTION_SETTINGS));
     }
 
@@ -674,9 +674,9 @@ public class SettingsActivity extends Activity {
 
     void chooseSource() {
         String[] keys = {Suggestions.SRC_JUSTWATCH, Suggestions.SRC_TMDB, Suggestions.SRC_STREMIO};
-        String[] names = {"JustWatch  (no setup needed)", "TMDB  (needs a free token)", "Stremio  (opens in Stremio or Nuvio)"};
+        String[] names = {"JustWatch  (não precisa configurar)", "TMDB  (precisa de um token grátis)", "Stremio  (abre no Stremio ou no Nuvio)"};
         int cur = Math.max(0, java.util.Arrays.asList(keys).indexOf(Suggestions.source(this)));
-        dialog("Recommendation source").setSingleChoiceItems(names, cur, (d, w) -> {
+        dialog("Fonte das recomendações").setSingleChoiceItems(names, cur, (d, w) -> {
             Suggestions.prefs(this).edit().putString(Suggestions.K_SOURCE, keys[w]).apply();
             Suggestions.changed(this);
             refreshAll();
@@ -690,7 +690,7 @@ public class SettingsActivity extends Activity {
     void enterToken() {
         android.widget.EditText in = new android.widget.EditText(this);
         in.setSingleLine(true);
-        in.setHint("v3 API key (32 characters) or read-access token");
+        in.setHint("Chave da API v3 (32 caracteres) ou token de leitura");
         in.setText(Suggestions.prefs(this).getString(Suggestions.K_TOKEN, ""));
         in.setSelection(in.getText().length());
         in.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
@@ -698,28 +698,28 @@ public class SettingsActivity extends Activity {
         FrameLayout box = new FrameLayout(this);
         box.setPadding(pad, pad / 2, pad, 0);
         box.addView(in);
-        dialog("TMDB token")
-                .setMessage("Get it free at themoviedb.org \u2192 Settings \u2192 API. The short \"API Key\" is easiest to type.")
+        dialog("Token do TMDB")
+                .setMessage("Pegue de graça em themoviedb.org \u2192 Settings \u2192 API. A \"API Key\" curta é mais fácil de digitar.")
                 .setView(box)
-                .setPositiveButton("Save", (d, w) -> {
+                .setPositiveButton("Salvar", (d, w) -> {
                     Suggestions.prefs(this).edit().putString(Suggestions.K_TOKEN, in.getText().toString().trim()).apply();
                     Suggestions.changed(this);
                     refreshAll();
                 })
-                .setNeutralButton("Clear", (d, w) -> {
+                .setNeutralButton("Limpar", (d, w) -> {
                     Suggestions.prefs(this).edit().remove(Suggestions.K_TOKEN).apply();
                     Suggestions.changed(this);
                     refreshAll();
                 })
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton("Cancelar", null)
                 .show();
         in.requestFocus();
     }
 
     /** Automatic (from the internet address) or a city found by name. */
     void chooseLocation() {
-        String[] names = {"Automatic", "Choose City\u2026"};
-        dialog("Weather location").setSingleChoiceItems(names, Weather.manual(this) ? 1 : 0, (d, w) -> {
+        String[] names = {"Automática", "Escolher cidade\u2026"};
+        dialog("Cidade do clima").setSingleChoiceItems(names, Weather.manual(this) ? 1 : 0, (d, w) -> {
             d.dismiss();
             if (w == 0) {
                 Weather.setPlace(this, null);
@@ -733,15 +733,15 @@ public class SettingsActivity extends Activity {
     void searchCity() {
         android.widget.EditText in = new android.widget.EditText(this);
         in.setSingleLine(true);
-        in.setHint("City name, e.g. Bengaluru");
+        in.setHint("Nome da cidade, ex.: Imperatriz");
         in.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
         int pad = Ui.px(this, 14);
         FrameLayout box = new FrameLayout(this);
         box.setPadding(pad, pad / 2, pad, 0);
         box.addView(in);
-        dialog("Choose City")
+        dialog("Escolher cidade")
                 .setView(box)
-                .setPositiveButton("Search", (d, w) -> {
+                .setPositiveButton("Busca", (d, w) -> {
                     String q = in.getText().toString().trim();
                     if (q.isEmpty()) return;
                     new Thread(() -> {
@@ -755,7 +755,7 @@ public class SettingsActivity extends Activity {
                         runOnUiThread(() -> showCities(q, res));
                     }).start();
                 })
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton("Cancelar", null)
                 .show();
         in.requestFocus();
     }
@@ -763,11 +763,11 @@ public class SettingsActivity extends Activity {
     void showCities(String q, List<Weather.Place> res) {
         if (isFinishing()) return;
         if (res == null) {
-            Toast.makeText(this, "Couldn't search. Check the internet connection.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Não deu pra buscar. Veja a conexão de internet.", Toast.LENGTH_LONG).show();
             return;
         }
         if (res.isEmpty()) {
-            Toast.makeText(this, "No city called \u201c" + q + "\u201d", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "Nenhuma cidade chamada \u201c" + q + "\u201d", Toast.LENGTH_LONG).show();
             return;
         }
         String[] names = new String[res.size()];
@@ -775,16 +775,16 @@ public class SettingsActivity extends Activity {
             Weather.Place pl = res.get(i);
             names[i] = pl.detail.isEmpty() ? pl.name : pl.name + "  \u00b7  " + pl.detail;
         }
-        dialog("Choose City").setItems(names, (d, w) -> {
+        dialog("Escolher cidade").setItems(names, (d, w) -> {
             Weather.setPlace(this, res.get(w));
             refreshAll();
-        }).setNegativeButton("Cancel", null).show();
+        }).setNegativeButton("Cancelar", null).show();
     }
 
     /** Address, QR and pairing code for sending content from a phone or computer. */
     void showPresentInfo() {
         if (!com.petrobot.hume.present.Presenter.enabled(this)) {
-            Toast.makeText(this, "Turn on Presentation mode first", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Ligue o modo apresentação primeiro", Toast.LENGTH_SHORT).show();
             return;
         }
         com.petrobot.hume.present.Presenter.ensureRunning(this);
@@ -800,22 +800,22 @@ public class SettingsActivity extends Activity {
         box.addView(qr, new LinearLayout.LayoutParams(Ui.px(this, 122), Ui.px(this, 122)));
         TextView info = new TextView(this);
         String pin = com.petrobot.hume.present.Presenter.pin(this);
-        info.setText("Open on a phone or computer on the same Wi-Fi:\n\n"
-                + com.petrobot.hume.present.Presenter.address() + "\n\nPairing code\n"
+        info.setText("Abra num celular ou computador no mesmo Wi-Fi:\n\n"
+                + com.petrobot.hume.present.Presenter.address() + "\n\nCódigo de pareamento\n"
                 + pin.substring(0, 3) + " " + pin.substring(3));
         info.setTextColor(Color.WHITE);
         info.setTypeface(Ui.font(this, "medium"));
         Ui.textSize(info, 14);
         info.setPadding(Ui.px(this, 18), 0, 0, 0);
         box.addView(info);
-        dialog("Send to this TV").setView(box).setPositiveButton("Done", null).show();
+        dialog("Enviar para esta TV").setView(box).setPositiveButton("Pronto", null).show();
     }
 
     void chooseTypes() {
         String[] keys = {"both", "movie", "tv"};
-        String[] names = {"Movies & Series", "Movies", "TV Series"};
+        String[] names = {"Filmes e séries", "Filmes", "Séries"};
         int cur = java.util.Arrays.asList(keys).indexOf(Suggestions.types(this));
-        dialog("Content").setSingleChoiceItems(names, cur, (d, w) -> {
+        dialog("Conteúdo").setSingleChoiceItems(names, cur, (d, w) -> {
             Suggestions.prefs(this).edit().putString(Suggestions.K_TYPES, keys[w]).apply();
             Suggestions.changed(this);
             refreshAll();
@@ -830,21 +830,21 @@ public class SettingsActivity extends Activity {
         Set<String> cur = Suggestions.providers(this);
         for (int i = 0; i < n; i++) {
             Suggestions.Provider p = Suggestions.PROVIDERS.get(i);
-            names[i] = p.name + (Suggestions.installed(this, p.pkg) ? "" : "  (not installed)");
+            names[i] = p.name + (Suggestions.installed(this, p.pkg) ? "" : "  (não instalado)");
             on[i] = cur.contains(String.valueOf(p.id));
         }
-        dialog("Streaming services").setMultiChoiceItems(names, on, (d, w, c) -> on[w] = c)
-                .setPositiveButton("Done", (d, w) -> {
+        dialog("Serviços de streaming").setMultiChoiceItems(names, on, (d, w, c) -> on[w] = c)
+                .setPositiveButton("Pronto", (d, w) -> {
                     Set<String> sel = new java.util.HashSet<>();
                     for (int i = 0; i < n; i++) if (on[i]) sel.add(String.valueOf(Suggestions.PROVIDERS.get(i).id));
                     if (sel.isEmpty()) {
-                        Toast.makeText(this, "Keep at least one service", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "Deixe pelo menos um serviço", Toast.LENGTH_SHORT).show();
                         return;
                     }
                     Suggestions.prefs(this).edit().putStringSet(Suggestions.K_PROVIDERS, sel).apply();
                     Suggestions.changed(this);
                     refreshAll();
-                }).setNegativeButton("Cancel", null).show();
+                }).setNegativeButton("Cancelar", null).show();
     }
 
     void chooseLanguages() {
@@ -852,23 +852,23 @@ public class SettingsActivity extends Activity {
         boolean[] on = new boolean[n];
         Set<String> cur = Suggestions.languages(this);
         for (int i = 0; i < n; i++) on[i] = cur.contains(Suggestions.LANG_CODES[i]);
-        dialog(Suggestions.source(this).equals(Suggestions.SRC_TMDB) ? "Languages (none = any)" : "Languages (TMDB source only)")
+        dialog(Suggestions.source(this).equals(Suggestions.SRC_TMDB) ? "Idiomas (nenhum = todos)" : "Idiomas (só na fonte TMDB)")
                 .setMultiChoiceItems(Suggestions.LANG_NAMES, on, (d, w, c) -> on[w] = c)
-                .setPositiveButton("Done", (d, w) -> {
+                .setPositiveButton("Pronto", (d, w) -> {
                     Set<String> sel = new java.util.HashSet<>();
                     for (int i = 0; i < n; i++) if (on[i]) sel.add(Suggestions.LANG_CODES[i]);
                     Suggestions.prefs(this).edit().putStringSet(Suggestions.K_LANGS, sel).apply();
                     Suggestions.changed(this);
                     refreshAll();
-                }).setNegativeButton("Cancel", null).show();
+                }).setNegativeButton("Cancelar", null).show();
     }
 
     void chooseAdvance() {
         int[] secs = {0, 6, 8, 12};
-        String[] names = {"Off", "Every 6 s", "Every 8 s", "Every 12 s"};
+        String[] names = {"Desligado", "A cada 6 s", "A cada 8 s", "A cada 12 s"};
         int cur = 0;
         for (int i = 0; i < secs.length; i++) if (secs[i] == Suggestions.advanceSeconds(this)) cur = i;
-        dialog("Auto-advance").setSingleChoiceItems(names, cur, (d, w) -> {
+        dialog("Passar sozinho").setSingleChoiceItems(names, cur, (d, w) -> {
             Suggestions.prefs(this).edit().putInt(Suggestions.K_ADVANCE, secs[w]).apply();
             refreshAll();
             d.dismiss();

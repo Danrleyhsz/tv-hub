@@ -40,7 +40,7 @@ import java.util.concurrent.Executors;
  * Search, as on tvOS: the Home Screen blurred behind, what you typed at the top, a one-row
  * keyboard, and rows of results under it. Apps, settings and inputs match on every key press with
  * no network; movies and series (JustWatch, any service in India, and Stremio) are fetched once
- * typing pauses. OK on a title opens its "How to Watch" sheet with an Open / Get button per app.
+ * typing pauses. OK on a title opens its "Onde assistir" sheet with an Open / Get button per app.
  *
  * Geometry in design units (960 x 540, half of Apple's 1920 x 1080 points): 48 side margin as the
  * Home Screen, query 26 high at the top, keys on a 30 pitch, poster lockups 96 x 144 (2:3).
@@ -51,10 +51,8 @@ final class SearchPanel {
     static final long DEBOUNCE_MS = 350;
     static final String LATIN = "abcdefghijklmnopqrstuvwxyz";
     static final String DIGITS = "1234567890.-'&:!?";
-    static final String HINDI = "अआइईउऊएऐओऔ"
-            + "कखगघचछजझटठडढण"
-            + "तथदधनपफबभमयरलव"
-            + "शषसहािीुूेैोौं्";
+    /** Accented letters, for titles and names in Portuguese. */
+    static final String ACCENTS = "áàâãéêíóôõúüç";
 
     final MainActivity a;
     final FrameLayout layer;
@@ -180,17 +178,17 @@ final class SearchPanel {
     /** The one-row keyboard for the current mode, then space, delete, mode switches and the mic. */
     void buildKeys(String focusLabel) {
         keys.removeAllViews();
-        String chars = mode == 1 ? DIGITS : mode == 2 ? HINDI : LATIN;
+        String chars = mode == 1 ? DIGITS : mode == 2 ? ACCENTS : LATIN;
         List<View> made = new ArrayList<>();
         for (int i = 0; i < chars.length(); i++) {
             String ch = String.valueOf(chars.charAt(i));
             made.add(key(ch, a.dp(30), () -> type(ch)));
         }
-        made.add(key("space", a.dp(64), () -> type(" ")));
+        made.add(key("espaço", a.dp(64), () -> type(" ")));
         made.add(key("⌫", a.dp(40), this::backspace));
         made.add(key(mode == 1 ? "abc" : "123", a.dp(48), () -> switchMode(mode == 1 ? 0 : 1)));
-        made.add(key(mode == 2 ? "abc" : "अआ", a.dp(48), () -> switchMode(mode == 2 ? 0 : 2)));
-        made.add(key("clear", a.dp(56), this::clear));
+        made.add(key(mode == 2 ? "abc" : "áã", a.dp(48), () -> switchMode(mode == 2 ? 0 : 2)));
+        made.add(key("limpar", a.dp(56), this::clear));
         View focus = made.get(0);
         for (View k : made) {
             keys.addView(k);
@@ -234,7 +232,7 @@ final class SearchPanel {
     void switchMode(int m) {
         int prev = mode;
         mode = m;
-        buildKeys(m != 0 ? "abc" : prev == 1 ? "123" : "\u0905\u0906");
+        buildKeys(m != 0 ? "abc" : prev == 1 ? "123" : "áã");
     }
 
     void type(String s) {
@@ -314,18 +312,18 @@ final class SearchPanel {
     Intent speechIntent() {
         return new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
                 .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH)
-                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-IN")
-                .putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", new String[]{"hi-IN"})
+                .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "pt-BR")
+                .putExtra("android.speech.extra.EXTRA_ADDITIONAL_LANGUAGES", new String[]{"en-US"})
                 .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                 .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                 .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, a.getPackageName())
-                .putExtra(RecognizerIntent.EXTRA_PROMPT, "Say a movie, show or app");
+                .putExtra(RecognizerIntent.EXTRA_PROMPT, "Fale um filme, série ou app");
     }
 
     /** The TV's own voice prompt (Google's on Android TV); the answer arrives in onVoice. */
     void prompt() {
         if (!voice) {
-            a.toast("Voice input isn't available on this TV");
+            a.toast("Esta TV não tem entrada de voz");
             return;
         }
         try {
@@ -333,7 +331,7 @@ final class SearchPanel {
             i.removeExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS);
             a.startActivityForResult(i, REQ_VOICE);
         } catch (Exception e) {
-            a.toast("Voice input isn't available on this TV");
+            a.toast("Esta TV não tem entrada de voz");
         }
     }
 
@@ -385,7 +383,7 @@ final class SearchPanel {
                 prompt();  // the service won't dictate for us: use the TV's voice prompt
             } else if (!wasHeard) {
                 queryView.setText(error == SpeechRecognizer.ERROR_NETWORK || error == SpeechRecognizer.ERROR_NETWORK_TIMEOUT
-                        ? "Voice needs the internet" : "Didn\u2019t catch that \u2014 press the mic to try again");
+                        ? "A voz precisa de internet" : "Não entendi \u2014 aperte o microfone pra tentar de novo");
                 queryView.setAlpha(0.6f);
             }
         }
@@ -404,7 +402,7 @@ final class SearchPanel {
 
     void showQuery() {
         boolean empty = query.length() == 0;
-        queryView.setText(empty ? (listening ? "Listening\u2026" : "Search apps, movies and shows") : query);
+        queryView.setText(empty ? (listening ? "Ouvindo\u2026" : "Buscar apps, filmes e séries") : query);
         queryView.setAlpha(empty ? 0.45f : 1f);
     }
 
@@ -438,18 +436,18 @@ final class SearchPanel {
             renderSuggestions();
         } else {
             List<View> local = localResults(q);
-            if (!local.isEmpty()) addRow("Apps & Settings", local, a.dp(84));
+            if (!local.isEmpty()) addRow("Apps e ajustes", local, a.dp(84));
             if (q.length() >= 2 && Search.titlesEnabled(a)) {
-                titleRow = addRow("Movies & TV", new ArrayList<>(), a.dp(176));
+                titleRow = addRow("Filmes e séries", new ArrayList<>(), a.dp(176));
                 List<Search.Title> hit = cache.get(q.toLowerCase());
                 if (hit != null) fillTitles(hit);
-                else titleStatus(q.equals(failed) ? "Can’t reach the internet" : "Searching…");
+                else titleStatus(q.equals(failed) ? "Sem acesso à internet" : "Buscando…");
                 if (Search.hasStremioApp(a)) {
                     List<Search.Title> sh = stremioCache.get(q.toLowerCase());
                     if (sh != null) fillStremio(sh);
                 }
             } else if (local.isEmpty()) {
-                addNote(q.length() < 2 ? "Keep typing to search movies and shows" : "No results");
+                addNote(q.length() < 2 ? "Continue digitando para buscar filmes e séries" : "Nada encontrado");
             }
         }
         if (inResults) firstKey().requestFocus();
@@ -470,12 +468,12 @@ final class SearchPanel {
         if (!recent.isEmpty()) {
             List<View> chips = new ArrayList<>();
             for (String r : recent) chips.add(chip(r, () -> setQuery(r)));
-            chips.add(chip("Clear", () -> {
+            chips.add(chip("Limpar", () -> {
                 Search.clearRecent(a);
                 render();
                 firstKey().requestFocus();
             }));
-            addRow("Recent Searches", chips, a.dp(44));
+            addRow("Buscas recentes", chips, a.dp(44));
         }
         List<View> trend = new ArrayList<>();
         Set<String> seen = new HashSet<>();
@@ -489,8 +487,8 @@ final class SearchPanel {
                 if (trend.size() >= 10) break;
             }
         }
-        if (!trend.isEmpty()) addRow("Trending", trend, a.dp(44));
-        if (recent.isEmpty() && trend.isEmpty()) addNote("Type to search your apps, settings, movies and shows");
+        if (!trend.isEmpty()) addRow("Em alta", trend, a.dp(44));
+        if (recent.isEmpty() && trend.isEmpty()) addNote("Digite para buscar apps, ajustes, filmes e séries");
     }
 
     /** Apps (including hidden ones), TV inputs, Hume actions and TV settings matching q, best first. */
@@ -502,7 +500,7 @@ final class SearchPanel {
             if (s >= 0) hits.add(new Object[]{s, appCard(e)});
         }
         for (Inputs.Input in : a.inputs) {
-            int s = Search.score(in.label, "input hdmi av tv source", q);
+            int s = Search.score(in.label, "entrada hdmi av tv fonte input", q);
             if (s >= 0) hits.add(new Object[]{s, actionCard(in.label, Inputs.glyph(in), () -> Inputs.open(a, in))});
         }
         for (Object[] act : actions()) {
@@ -518,24 +516,24 @@ final class SearchPanel {
     /** Hume's own screens and the TV settings people look for: name, keywords, glyph, action. */
     List<Object[]> actions() {
         List<Object[]> l = new ArrayList<>();
-        l.add(new Object[]{"Control Center", "controls power sleep", "controls", (Runnable) () -> { close(); a.showControlCenter(); }});
-        l.add(new Object[]{"Weather Forecast", "weather temperature rain", "refresh", (Runnable) () -> { close(); a.showWeather(); }});
-        l.add(new Object[]{"Switch Profile", "profile user who", "controls", (Runnable) () -> { close(); a.showProfilePicker(false); }});
-        l.add(new Object[]{"Hume Settings", "settings launcher preferences", "gear", (Runnable) () -> {
+        l.add(new Object[]{"Central de controle", "controle desligar suspender central", "controls", (Runnable) () -> { close(); a.showControlCenter(); }});
+        l.add(new Object[]{"Previsão do tempo", "clima tempo temperatura chuva previsao", "refresh", (Runnable) () -> { close(); a.showWeather(); }});
+        l.add(new Object[]{"Trocar de perfil", "perfil usuario quem pessoa", "controls", (Runnable) () -> { close(); a.showProfilePicker(false); }});
+        l.add(new Object[]{"Ajustes do launcher", "ajustes launcher preferencias configuracoes", "gear", (Runnable) () -> {
             a.returningFromSettings = true;
             a.startActivity(new Intent(a, SettingsActivity.class));
         }});
-        l.add(new Object[]{"Refresh Carousel", "refresh reload news recommendations", "refresh", (Runnable) () -> { close(); a.refreshAll(); }});
-        l.add(new Object[]{"Wi-Fi", "wifi network internet", "wifi", settings(Settings.ACTION_WIFI_SETTINGS)});
-        l.add(new Object[]{"Bluetooth", "bluetooth remote controller headphones speaker pair", "gamepad", settings(Settings.ACTION_BLUETOOTH_SETTINGS)});
-        l.add(new Object[]{"Sound", "sound audio volume speaker", "audio", settings("android.settings.SOUND_SETTINGS")});
-        l.add(new Object[]{"Display", "display resolution screen picture", "present", settings(Settings.ACTION_DISPLAY_SETTINGS)});
-        l.add(new Object[]{"Screen Saver", "screensaver dream ambient", "moon", settings("android.settings.DREAM_SETTINGS")});
-        l.add(new Object[]{"Date & Time", "date time clock", "timer", settings(Settings.ACTION_DATE_SETTINGS)});
-        l.add(new Object[]{"Accessibility", "accessibility captions", "accessibility", settings(Settings.ACTION_ACCESSIBILITY_SETTINGS)});
-        l.add(new Object[]{"Apps", "apps applications uninstall storage", "memory", settings(Settings.ACTION_APPLICATION_SETTINGS)});
-        l.add(new Object[]{"Storage", "storage space memory", "memory", settings(Settings.ACTION_INTERNAL_STORAGE_SETTINGS)});
-        l.add(new Object[]{"TV Settings", "settings system device", "gear", settings(Settings.ACTION_SETTINGS)});
+        l.add(new Object[]{"Atualizar o carrossel", "atualizar recarregar noticias recomendacoes", "refresh", (Runnable) () -> { close(); a.refreshAll(); }});
+        l.add(new Object[]{"Wi-Fi", "wifi rede internet", "wifi", settings(Settings.ACTION_WIFI_SETTINGS)});
+        l.add(new Object[]{"Bluetooth", "bluetooth controle fone caixa parear", "gamepad", settings(Settings.ACTION_BLUETOOTH_SETTINGS)});
+        l.add(new Object[]{"Som", "som audio volume alto-falante", "audio", settings("android.settings.SOUND_SETTINGS")});
+        l.add(new Object[]{"Tela", "tela resolucao imagem video", "present", settings(Settings.ACTION_DISPLAY_SETTINGS)});
+        l.add(new Object[]{"Protetor de tela", "protetor de tela descanso ambiente", "moon", settings("android.settings.DREAM_SETTINGS")});
+        l.add(new Object[]{"Data e hora", "data hora relogio", "timer", settings(Settings.ACTION_DATE_SETTINGS)});
+        l.add(new Object[]{"Acessibilidade", "acessibilidade legendas", "accessibility", settings(Settings.ACTION_ACCESSIBILITY_SETTINGS)});
+        l.add(new Object[]{"Apps", "apps aplicativos desinstalar armazenamento", "memory", settings(Settings.ACTION_APPLICATION_SETTINGS)});
+        l.add(new Object[]{"Armazenamento", "armazenamento espaco memoria", "memory", settings(Settings.ACTION_INTERNAL_STORAGE_SETTINGS)});
+        l.add(new Object[]{"Ajustes da TV", "ajustes sistema aparelho tv", "gear", settings(Settings.ACTION_SETTINGS)});
         return l;
     }
 
@@ -624,7 +622,7 @@ final class SearchPanel {
                 else failed = q;
                 if (g != gen) return;
                 if (res != null) fillTitles(res);
-                else titleStatus("Can’t reach the internet");
+                else titleStatus("Sem acesso à internet");
             });
         });
         if (Search.hasStremioApp(a) && !stremioCache.containsKey(key)) {
@@ -647,7 +645,7 @@ final class SearchPanel {
     void fillTitles(List<Search.Title> ts) {
         if (titleRow == null) return;
         if (ts.isEmpty()) {
-            titleStatus("No movies or shows found");
+            titleStatus("Nenhum filme ou série encontrado");
             return;
         }
         List<View> cards = new ArrayList<>();
@@ -827,7 +825,7 @@ final class SearchPanel {
 
     /**
      * The title's page, like the Apple TV app's: artwork behind, title, details and summary on
-     * the left, and "How to Watch" with one button per app (Open when installed, Get otherwise).
+     * the left, and "Onde assistir" with one button per app (Open when installed, Get otherwise).
      */
     void showSheet(Search.Title t, View from) {
         Search.remember(a, q());
@@ -856,7 +854,7 @@ final class SearchPanel {
         col.addView(title, new LinearLayout.LayoutParams(a.dp(520), ViewGroup.LayoutParams.WRAP_CONTENT));
         List<String> meta = new ArrayList<>();
         if (!t.year.isEmpty()) meta.add(t.year);
-        meta.add(t.type.equals("tv") ? "Series" : "Movie");
+        meta.add(t.type.equals("tv") ? "Série" : "Filme");
         if (!t.genres.isEmpty()) meta.add(t.genres);
         if (t.rating > 0) meta.add(String.format(java.util.Locale.US, "IMDb %.1f", t.rating));
         TextView m = a.text(13, Ui.font(a, "medium"), 0.75f);
@@ -875,7 +873,7 @@ final class SearchPanel {
             col.addView(o, olp);
         }
         TextView how = a.text(13, Ui.font(a, "semibold"), 0.7f);
-        how.setText("HOW TO WATCH");
+        how.setText("ONDE ASSISTIR");
         how.setLetterSpacing(0.06f);
         LinearLayout.LayoutParams hlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         hlp.topMargin = a.dp(22);
@@ -892,7 +890,7 @@ final class SearchPanel {
         }
         if (buttons.isEmpty()) {
             TextView none = a.text(14, Ui.font(a, "regular"), 0.7f);
-            none.setText("Not streaming in India right now.");
+            none.setText("Não está em nenhum streaming no Brasil agora.");
             col.addView(none);
         }
         s.addView(col, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
@@ -905,7 +903,7 @@ final class SearchPanel {
         if (buttons.isEmpty()) s.requestFocus();
     }
 
-    /** [logo] Open in Prime Video ... Subscription, or Get JioHotstar for apps that aren't installed. */
+    /** [logo] Abrir no Prime Video ... Assinatura, ou Instalar para os apps que faltam. */
     View offerButton(Search.Title t, Search.Offer o) {
         LinearLayout b = new LinearLayout(a);
         b.setOrientation(LinearLayout.HORIZONTAL);
@@ -930,7 +928,7 @@ final class SearchPanel {
         name.setSingleLine(true);
         name.setEllipsize(TextUtils.TruncateAt.END);
         boolean have = o.installed();
-        name.setText((have ? "▶  Open in " : "Get ") + o.service);
+        name.setText((have ? "▶  Abrir no " : "Get ") + o.service);
         b.addView(name, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         TextView kind = a.text(12, Ui.font(a, "medium"), 0.7f);
         kind.setShadowLayer(0, 0, 0, 0);

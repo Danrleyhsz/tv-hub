@@ -90,7 +90,7 @@ public class PowerService extends AccessibilityService {
         AccessibilityNodeInfo root = getRootInActiveWindow();
         boolean clicked = false;
         if (root != null) {
-            String[] labels = step == 0 ? new String[]{"Force stop", "FORCE STOP", "Force Stop"} : new String[]{"OK", "Ok"};
+            String[] labels = step == 0 ? new String[]{"Force stop", "FORCE STOP", "Forçar parada"} : new String[]{"OK", "Ok"};
             for (String l : labels) {
                 List<AccessibilityNodeInfo> found = root.findAccessibilityNodeInfosByText(l);
                 for (AccessibilityNodeInfo n : found) {

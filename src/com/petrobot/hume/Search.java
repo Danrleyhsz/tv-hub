@@ -59,11 +59,11 @@ final class Search {
 
         String label() {
             switch (monetization) {
-                case "FLATRATE": return "Subscription";
-                case "FREE": return "Free";
-                case "ADS": return "Free with ads";
-                case "RENT": return "Rent";
-                case "BUY": return "Buy";
+                case "FLATRATE": return "Assinatura";
+                case "FREE": return "Grátis";
+                case "ADS": return "Grátis com anúncios";
+                case "RENT": return "Alugar";
+                case "BUY": return "Comprar";
                 case "STREMIO": return "Add-ons";
                 default: return "";
             }
@@ -115,7 +115,7 @@ final class Search {
 
     // ------------------------------------------------------------------ text matching
 
-    /** Lower case, letters and digits only (so "Sony LIV" == "sonyliv"). */
+    /** Lower case, letters and digits only (so "Prime Video" == "primevideo"). */
     static String norm(String s) {
         StringBuilder b = new StringBuilder();
         for (char ch : s.toLowerCase(Locale.ROOT).toCharArray()) if (Character.isLetterOrDigit(ch)) b.append(ch);
@@ -138,12 +138,12 @@ final class Search {
 
     // ------------------------------------------------------------------ titles
 
-    static final String JW_SEARCH = "query S($q: String!, $first: Int!) { popularTitles(country: IN, first: $first,"
+    static final String JW_SEARCH = "query S($q: String!, $first: Int!) { popularTitles(country: BR, first: $first,"
             + " filter: {searchQuery: $q}) { edges { node { objectType"
-            + " content(country: IN, language: \"en\") { title originalReleaseYear shortDescription"
+            + " content(country: BR, language: \"pt\") { title originalReleaseYear shortDescription"
             + " posterUrl(profile: S332, format: JPG) backdrops(profile: S1440, format: JPG) { backdropUrl }"
-            + " genres { translation(language: \"en\") } externalIds { imdbId } scoring { imdbScore } }"
-            + " offers(country: IN, platform: WEB) { monetizationType standardWebURL deeplinkURL(platform: ANDROID_TV)"
+            + " genres { translation(language: \"pt\") } externalIds { imdbId } scoring { imdbScore } }"
+            + " offers(country: BR, platform: WEB) { monetizationType standardWebURL deeplinkURL(platform: ANDROID_TV)"
             + " package { clearName technicalName icon(profile: S100, format: PNG) } } } } } }";
 
     /** Titles matching q on any service in India (JustWatch), best match first. */
@@ -239,7 +239,7 @@ final class Search {
         return Suggestions.installed(c, Suggestions.STREMIO.pkg) || Suggestions.installed(c, Suggestions.NUVIO.pkg);
     }
 
-    /** "Open in Stremio" (or Nuvio) by IMDb id, after the services, when one of them is installed. */
+    /** "Abrir no Stremio" (or Nuvio) by IMDb id, after the services, when one of them is installed. */
     static void addStremio(Context c, Title t) {
         if (!hasStremioApp(c)) return;
         Suggestions.Provider p = Suggestions.stremioApp(c);
@@ -252,7 +252,7 @@ final class Search {
     }
 
     static String tidyService(String s) {
-        return s.replace(" Free with Ads", "").replace(" with Ads", "").replace(" Amazon Channel", "").trim();
+        return s.replace(" grátis com anúncios", "").replace(" com anúncios", "").replace(" (canal Amazon)", "").trim();
     }
 
     static String clean(String s) {
@@ -348,7 +348,7 @@ final class Search {
         RESOLVED.put(o.tech, o.pkg + "|" + o.getPkg);
     }
 
-    /** An installed app whose name matches the service's ("Sony Liv" ~ "Sony LIV", "Zee5" ~ "ZEE5"). */
+    /** An installed app whose name matches the service's ("Globo Play" ~ "Globoplay"). */
     static String byName(String service, Apps apps) {
         String s = norm(service);
         if (s.length() < 3) return "";

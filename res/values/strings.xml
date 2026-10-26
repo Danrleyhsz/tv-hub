@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="power_service_desc">Lets Hume Launcher put the TV to sleep (Power Off, Sleep Timer) and close apps when you press Clean in Control Center. It is only used when you ask Hume to do one of these.</string>
+    <string name="power_service_desc">Deixa o launcher suspender a TV (Desligar, timer de sono) e fechar apps quando você aperta Limpar na central de controle. Só é usado quando você pede.</string>
 </resources>

@@ -35,6 +35,8 @@ public class SetupActivity extends Activity {
     ImageView backdrop;
     LinearLayout page;
     int index = 0;
+    /** The city picker is a separate screen; when it comes back, the page is done. */
+    boolean pickingCity;
     final Handler handler = new Handler(Looper.getMainLooper());
 
     interface Step {
@@ -122,6 +124,12 @@ public class SetupActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        if (pickingCity) {
+            // Back from the city picker: the weather page is settled either way, so move on.
+            pickingCity = false;
+            next();
+            return;
+        }
         if (index == 6) show(6, 0);
     }
 
@@ -250,13 +258,13 @@ public class SetupActivity extends Activity {
         backdrop.animate().alpha(0f).setDuration(300).start();
         View top = new View(this);
         page.addView(top, new LinearLayout.LayoutParams(1, 0, 1f));
-        TextView hi = title("Welcome");
+        TextView hi = title("Bem-vindo");
         Ui.textSize(hi, 64);
         hi.setAlpha(0f);
         hi.setTranslationY(u(12));
         hi.animate().alpha(1f).translationY(0).setDuration(700).start();
-        // "Welcome" in Indian and world languages, fading from one to the next.
-        String[] words = {"Welcome", "\u0938\u094d\u0935\u093e\u0917\u0924 \u0939\u0948", "\u09b8\u09cd\u09ac\u09be\u0997\u09a4\u09ae", "\u0bb5\u0bb0\u0bb5\u0bc7\u0bb1\u0bcd\u0b95\u0bbf\u0bb1\u0bcb\u0bae\u0bcd", "\u0c38\u0c4d\u0c35\u0c3e\u0c17\u0c24\u0c02", "\u0938\u094d\u0935\u093e\u0917\u0924 \u0906\u0939\u0947", "\u0ab8\u0acd\u0ab5\u0abe\u0a97\u0aa4 \u0a9b\u0ac7", "\u0cb8\u0ccd\u0cb5\u0cbe\u0c97\u0ca4", "\u0d38\u0d4d\u0d35\u0d3e\u0d17\u0d24\u0d02", "\u0a1c\u0a40 \u0a06\u0a07\u0a06\u0a02 \u0a28\u0a42\u0a70", "Bienvenue", "Bienvenido", "Willkommen", "\u3088\u3046\u3053\u305d", "Benvenuto", "Bem-vindo", "\u6b22\u8fce"};
+        // "Bem-vindo" in a few languages, fading from one to the next.
+        String[] words = {"Bem-vindo", "Welcome", "Bienvenue", "Bienvenido", "Willkommen", "Benvenuto", "\u3088\u3046\u3053\u305d", "\u6b22\u8fce"};
         int[] k = {0};
         Runnable[] cycle = new Runnable[1];
         cycle[0] = () -> {
@@ -268,14 +276,14 @@ public class SetupActivity extends Activity {
             handler.postDelayed(cycle[0], 2200);
         };
         handler.postDelayed(cycle[0], 2400);
-        TextView s = subtitle("Let\u2019s set up Hume Launcher.");
+        TextView s = subtitle("Vamos preparar o seu launcher.");
         Ui.textSize(s, 17);
         LinearLayout l = list();
-        option(l, "Get Started", null, false, this::next);
+        option(l, "Começar", null, false, this::next);
         View mid = new View(this);
         page.addView(mid, new LinearLayout.LayoutParams(1, 0, 1f));
         TextView by = new TextView(this);
-        by.setText("by Petrobot");
+        by.setText("base: Hume Launcher, de Petrobot");
         by.setTextColor(0x80FFFFFF);
         by.setTypeface(Ui.font(this, "regular"));
         Ui.textSize(by, 13);
@@ -284,11 +292,11 @@ public class SetupActivity extends Activity {
     }
 
     void profile() {
-        title("Create Your Profile");
-        subtitle("Your name and an avatar. Each profile keeps its own apps, background and Home Screen. Up to three people can have one.");
+        title("Seu perfil");
+        subtitle("Seu nome e um ícone. Cada perfil guarda os próprios apps, fundo e tela inicial. Até três pessoas.");
         Profiles.Profile p = Profiles.current(this);
         LinearLayout l = list();
-        option(l, "Name", p.name, false, () -> {
+        option(l, "Nome", p.name, false, () -> {
             EditText in = new EditText(this);
             in.setSingleLine(true);
             in.setText(p.name);
@@ -298,7 +306,7 @@ public class SetupActivity extends Activity {
             box.setPadding(pad, pad / 2, pad, 0);
             box.addView(in);
             new android.app.AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle("Your name").setView(box)
+                    .setTitle("Seu nome").setView(box)
                     .setPositiveButton("OK", (d, w) -> {
                         String n = in.getText().toString().trim();
                         if (!n.isEmpty()) {
@@ -306,7 +314,7 @@ public class SetupActivity extends Activity {
                             Profiles.update(this, p);
                         }
                         show(index, 0);
-                    }).setNegativeButton("Cancel", null).show();
+                    }).setNegativeButton("Cancelar", null).show();
             in.requestFocus();
         });
         // Avatar: a row of emoji, the current one ringed.
@@ -343,14 +351,14 @@ public class SetupActivity extends Activity {
         rlp.bottomMargin = u(14);
         page.addView(row, rlp);
         LinearLayout l2 = list();
-        option(l2, "Continue", null, false, this::next);
+        option(l2, "Continuar", null, false, this::next);
         dots();
     }
 
     /** Backgrounds preview live behind the page as you move through them. */
     void look() {
-        title("Choose a look");
-        subtitle("The background behind your apps. Move through the list to preview it.");
+        title("Escolha o visual");
+        subtitle("O fundo atrás dos apps. Percorra a lista para ver cada um.");
         String cur = Profiles.homePrefs(this).getString("wallpaper", "aurora");
         setBackdrop(cur);
         LinearLayout l = list();
@@ -373,27 +381,27 @@ public class SetupActivity extends Activity {
     /** This profile's Home Screen: recommendations and/or news on the top shelf, as two switches. */
     void homeContent() {
         backdrop.animate().alpha(0.5f).setDuration(300).start();
-        title("Your Home Screen");
-        subtitle("What appears at the top of Home, behind your apps. Choose any, all or none.");
+        title("Sua tela inicial");
+        subtitle("O que aparece no topo da tela inicial, atrás dos apps. Escolha o que quiser, ou nada.");
         boolean recs = Suggestions.showRecs(this), news = Suggestions.showNews(this);
         LinearLayout l = list();
-        option(l, "Recommendations", "Popular movies and series on your streaming services", recs, () -> {
+        option(l, "Recomendações", "Filmes e séries em alta nos seus streamings", recs, () -> {
             Suggestions.setShelf(this, !recs, news);
             show(index, 0);
             focusRow(0);
         });
-        option(l, "News", "India, your city and the world, from Indian newsrooms", news, () -> {
+        option(l, "Notícias", "Brasil, sua cidade e o mundo, de jornais brasileiros", news, () -> {
             Suggestions.setShelf(this, recs, !news);
             show(index, 0);
             focusRow(1);
         });
-        boolean cw = Profiles.homePrefs(this).getBoolean("cw_enabled", true);
-        option(l, "Continue Watching", "What you were watching, mixed into the carousel", cw, () -> {
+        boolean cw = Profiles.homePrefs(this).getBoolean("cw_enabled", false);
+        option(l, "Continuar assistindo", "O que você estava vendo, junto no carrossel", cw, () -> {
             Profiles.homePrefs(this).edit().putBoolean("cw_enabled", !cw).apply();
             show(index, 0);
             focusRow(2);
         });
-        option(l, "Continue", recs || news || cw ? null : "Just your background for now", false, this::next);
+        option(l, "Continuar", recs || news || cw ? null : "Só o fundo, por enquanto", false, this::next);
         dots();
     }
 
@@ -404,22 +412,23 @@ public class SetupActivity extends Activity {
     }
 
     void weather() {
-        title("Weather");
-        subtitle("A small weather card in the top-left corner of Home, with a 5-day forecast.");
+        title("Clima");
+        subtitle("Um card de clima no canto superior esquerdo, com a previsão de 5 dias.");
         LinearLayout l = list();
         String city = Weather.place(this);
-        option(l, "Use My Location", city.isEmpty() ? "Found from your internet connection" : "Looks like " + city,
+        option(l, "Usar minha localização", city.isEmpty() ? "Descoberta pela conexão de internet" : "Parece ser " + city,
                 Weather.enabled(this) && !Weather.manual(this), () -> {
                     Weather.prefs(this).edit().putBoolean(Weather.K_ENABLED, true).apply();
                     Weather.setPlace(this, null);
                     next();
                 });
-        option(l, "Choose a City\u2026", Weather.manual(this) ? Weather.place(this) : "Search by name", Weather.manual(this), () -> {
+        option(l, "Escolher cidade\u2026", Weather.manual(this) ? Weather.place(this) : "Buscar pelo nome", Weather.manual(this), () -> {
             Weather.prefs(this).edit().putBoolean(Weather.K_ENABLED, true).apply();
+            pickingCity = true;
             Intent i = new Intent(this, SettingsActivity.class).putExtra("page", SettingsActivity.WEATHER);
             startActivity(i);
         });
-        option(l, "Don't Show Weather", null, !Weather.enabled(this), () -> {
+        option(l, "Não mostrar o clima", null, !Weather.enabled(this), () -> {
             Weather.prefs(this).edit().putBoolean(Weather.K_ENABLED, false).apply();
             Weather.changed(this);
             next();
@@ -441,11 +450,11 @@ public class SetupActivity extends Activity {
         LinearLayout.LayoutParams ilp = new LinearLayout.LayoutParams(u(90), u(54));
         ilp.bottomMargin = u(10);
         page.addView(icon, ilp);
-        title("Presentation");
-        subtitle("Images, videos and webpages sent from any phone or computer on the same Wi-Fi. For everyone on this TV.");
+        title("Apresentação");
+        subtitle("Imagens, vídeos e páginas enviados de qualquer celular ou computador no mesmo Wi-Fi. Para todo mundo nesta TV.");
         boolean on = com.petrobot.hume.present.Presenter.enabled(this);
         LinearLayout l = list();
-        option(l, "Use Presentation", on ? "Adds a Presentation card to Home" : "Off", on, () -> {
+        option(l, "Usar a apresentação", on ? "Adiciona um card de Apresentação na tela inicial" : "Desligado", on, () -> {
             com.petrobot.hume.present.Presenter.set(this, com.petrobot.hume.present.Presenter.KEY_ENABLED, !on);
             show(index, 0);
             focusRow(0);
@@ -453,18 +462,18 @@ public class SetupActivity extends Activity {
         if (on) {
             boolean boot = com.petrobot.hume.present.Presenter.startOnBoot(this),
                     awake = com.petrobot.hume.present.Presenter.keepAwake(this);
-            option(l, "Start with the TV", "Play as soon as the TV turns on (signage)", boot, () -> {
+            option(l, "Abrir junto com a TV", "Começa assim que a TV liga (modo mural)", boot, () -> {
                 com.petrobot.hume.present.Presenter.set(this, com.petrobot.hume.present.Presenter.KEY_BOOT, !boot);
                 show(index, 0);
                 focusRow(1);
             });
-            option(l, "Keep Screen Awake", "No screensaver or sleep while presenting", awake, () -> {
+            option(l, "Manter a tela acesa", "Sem protetor de tela nem suspensão durante a apresentação", awake, () -> {
                 com.petrobot.hume.present.Presenter.set(this, com.petrobot.hume.present.Presenter.KEY_AWAKE, !awake);
                 show(index, 0);
                 focusRow(2);
             });
         }
-        option(l, "Continue", null, false, this::next);
+        option(l, "Continuar", null, false, this::next);
         dots();
     }
 
@@ -476,23 +485,23 @@ public class SetupActivity extends Activity {
             askedLocation = true;
             handler.postDelayed(() -> Perms.requestLocation(this), 600);
         }
-        title("Finish Setting Up");
-        subtitle("Hume works best as the home screen. Allow these once; anything this TV doesn't support is skipped.");
+        title("Para terminar");
+        subtitle("O launcher funciona melhor como tela inicial. Permita uma vez; o que a TV não suportar é pulado.");
         LinearLayout l = list();
         boolean home = Perms.isDefaultHome(this);
-        option(l, "Make Hume the Home Screen", home ? "The Home button opens Hume" : "Choose Hume when asked", home,
+        option(l, "Usar como tela inicial", home ? "O botão Home passa a abrir este launcher" : "Escolha este launcher quando a TV perguntar", home,
                 () -> Perms.requestDefaultHome(this));
         if (!Perms.hasLocation(this)) {
-            option(l, "Show the Wi-Fi Name", "In Control Center (needs location access)", false,
+            option(l, "Mostrar o nome do Wi-Fi", "Na central de controle (precisa da localização)", false,
                     () -> Perms.requestLocation(this));
         }
         if (Perms.listenerSupported(this) && !Perms.hasListener(this)) {
-            option(l, "Continue Watching", "Remember what you play in each app", false, () -> Perms.requestListener(this));
+            option(l, "Continuar assistindo", "Lembrar o que você assiste em cada app", false, () -> Perms.requestListener(this));
         }
         if (Perms.adminSupported(this) && !Perms.hasAdmin(this)) {
-            option(l, "Power Off & Sleep Timer", "Let Hume turn the screen off", false, () -> Perms.requestAdmin(this));
+            option(l, "Desligar e timer de sono", "Deixar o launcher apagar a tela", false, () -> Perms.requestAdmin(this));
         }
-        option(l, "Continue", null, false, this::next);
+        option(l, "Continuar", null, false, this::next);
         dots();
     }
 
@@ -521,10 +530,10 @@ public class SetupActivity extends Activity {
         LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(u(64), u(64));
         clp.bottomMargin = u(18);
         page.addView(check, clp);
-        title("You're All Set");
-        subtitle("Change any of this later in Settings, from the gear in Control Center.");
+        title("Tudo pronto");
+        subtitle("Dá pra mudar tudo depois em Ajustes, na engrenagem da central de controle.");
         LinearLayout l = list();
-        option(l, "Go to Home Screen", null, false, () -> {
+        option(l, "Ir para a tela inicial", null, false, () -> {
             getSharedPreferences("setup", MODE_PRIVATE).edit().putBoolean(K_DONE, true).apply();
             startActivity(new Intent(this, MainActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TOP));
             finish();

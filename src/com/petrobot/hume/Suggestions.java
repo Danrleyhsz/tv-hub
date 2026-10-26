@@ -69,10 +69,11 @@ final class Suggestions {
     static final List<Provider> PROVIDERS = Arrays.asList(
             new Provider(8, "Netflix", "com.netflix.ninja", "nfx", "netflix"),
             new Provider(119, "Prime Video", "com.amazon.amazonvideo.livingroom", "prv", "amazonprimevideo"),
-            new Provider(2336, "JioHotstar", "in.startv.hotstar", "jhs", "jiohotstar"),
             new Provider(350, "Apple TV", "com.apple.atve.androidtv.appletv", "atp", "appletvplus"),
-            new Provider(232, "ZEE5", "com.graymatrix.did", "zee", "zee5"),
-            new Provider(237, "SonyLIV", "com.sonyliv", "snl", "sonyliv"));
+            new Provider(337, "Disney+", "com.disney.disneyplus", "dnp", "disneyplus"),
+            new Provider(1899, "Max", "com.wbd.stream", "hbm", "max"),
+            new Provider(307, "Globoplay", "com.globo.globotv", "gop", "globoplay"),
+            new Provider(283, "Crunchyroll", "com.crunchyroll.crunchyroid", "cru", "crunchyroll"));
 
     /**
      * Apps that open Cinemeta titles by IMDb id. Not streaming services, so they never appear in
@@ -83,8 +84,8 @@ final class Suggestions {
             NUVIO = new Provider(NUVIO_ID, "Nuvio", "com.nuvio.tv", "", "");
 
     /** Original-language filters offered in settings (TMDB ISO 639-1 codes). */
-    static final String[] LANG_CODES = {"hi", "en", "ta", "te", "ml", "kn", "bn", "mr"};
-    static final String[] LANG_NAMES = {"Hindi", "English", "Tamil", "Telugu", "Malayalam", "Kannada", "Bengali", "Marathi"};
+    static final String[] LANG_CODES = {"pt", "en", "es", "ja", "ko", "fr", "it"};
+    static final String[] LANG_NAMES = {"Português", "Inglês", "Espanhol", "Japonês", "Coreano", "Francês", "Italiano"};
 
     static final class Item {
         int id, providerId;
@@ -147,7 +148,7 @@ final class Suggestions {
         if (own != null) return own;
         SharedPreferences p = prefs(c);
         if (!p.contains(K_SHELF) && !p.getBoolean(K_ENABLED, true)) return SHELF_NONE;  // older setting
-        return p.getString(K_SHELF, SHELF_BOTH);
+        return p.getString(K_SHELF, SHELF_NONE);  // the home shows the photo, not recommendations
     }
 
     static void setShelf(Context c, String value) {
@@ -318,7 +319,7 @@ final class Suggestions {
                         .put("packages", new JSONArray().put(p.jwShort))
                         .put("objectTypes", new JSONArray().put(kind.equals("tv") ? "SHOW" : "MOVIE"))
                         .put("monetizationTypes", new JSONArray().put("FLATRATE").put("FREE").put("ADS"));
-                JSONObject vars = new JSONObject().put("country", "IN").put("language", "en")
+                JSONObject vars = new JSONObject().put("country", "BR").put("language", "pt")
                         .put("first", POOL).put("filter", filter);
                 JSONObject body = new JSONObject().put("query", JW_QUERY).put("variables", vars);
                 JSONObject res = post("https://apis.justwatch.com/graphql", body.toString());
@@ -454,8 +455,8 @@ final class Suggestions {
             if (!provs.contains(String.valueOf(p.id))) continue;
             for (String kind : kinds) {
                 StringBuilder q = new StringBuilder("/discover/").append(kind)
-                        .append("?watch_region=IN&with_watch_monetization_types=flatrate&sort_by=popularity.desc")
-                        .append("&language=en-IN&include_adult=false&with_watch_providers=").append(p.id);
+                        .append("?watch_region=BR&with_watch_monetization_types=flatrate&sort_by=popularity.desc")
+                        .append("&language=pt-BR&include_adult=false&with_watch_providers=").append(p.id);
                 if (!langs.isEmpty()) q.append("&with_original_language=").append(URLEncoder.encode(String.join("|", langs), "UTF-8"));
                 JSONArray results = get(c, q.toString()).optJSONArray("results");
                 List<Item> list = new ArrayList<>();
@@ -487,7 +488,7 @@ final class Suggestions {
         if (it.logo != null) return it.logo;
         if (!source(c).equals(SRC_TMDB)) return "";
         try {
-            JSONArray logos = get(c, "/" + it.type + "/" + it.id + "/images?include_image_language=en,hi,null")
+            JSONArray logos = get(c, "/" + it.type + "/" + it.id + "/images?include_image_language=pt,en,null")
                     .optJSONArray("logos");
             String best = "";
             for (int i = 0; logos != null && i < logos.length(); i++) {
@@ -511,7 +512,7 @@ final class Suggestions {
             if (f.exists()) {
                 o = new JSONObject(new String(readAll(new FileInputStream(f)), StandardCharsets.UTF_8));
             } else {
-                o = get(c, "/genre/" + kind + "/list?language=en");
+                o = get(c, "/genre/" + kind + "/list?language=pt-BR");
                 try (OutputStream os = new FileOutputStream(f)) {
                     os.write(o.toString().getBytes(StandardCharsets.UTF_8));
                 }

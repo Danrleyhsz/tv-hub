@@ -38,6 +38,9 @@ final class Weather {
     static final String SRC_OPEN_METEO = "openmeteo", SRC_MET = "met", SRC_WTTR = "wttr";
     static final String[] SOURCES = {SRC_OPEN_METEO, SRC_MET, SRC_WTTR};
     static final int[] REFRESH_CHOICES = {10, 15, 30, 60};
+    /** Imperatriz-MA, the TV's home city: used until another one is picked in Settings. */
+    static final String DEF_PLACE = "Imperatriz";
+    static final float DEF_LAT = -5.5264f, DEF_LON = -47.4917f;
     static final String UA = "HumeLauncher/6.2 (Android TV launcher)";
 
     private Weather() {
@@ -60,11 +63,11 @@ final class Weather {
     }
 
     static boolean manual(Context c) {
-        return prefs(c).getBoolean(K_MANUAL, false);
+        return prefs(c).getBoolean(K_MANUAL, true);
     }
 
     static String place(Context c) {
-        return prefs(c).getString(K_PLACE, "");
+        return prefs(c).getString(K_PLACE, DEF_PLACE);
     }
 
     static String source(Context c) {
@@ -218,7 +221,7 @@ final class Weather {
     }
 
     private static String key(Context c) {
-        return units(c) + "|" + source(c) + (manual(c) ? "|" + prefs(c).getFloat(K_LAT, 0) + "," + prefs(c).getFloat(K_LON, 0) : "|auto");
+        return units(c) + "|" + source(c) + (manual(c) ? "|" + prefs(c).getFloat(K_LAT, DEF_LAT) + "," + prefs(c).getFloat(K_LON, DEF_LON) : "|auto");
     }
 
     private static boolean busy;
@@ -235,9 +238,9 @@ final class Weather {
                 double lat, lon;
                 String place;
                 if (manual(c)) {
-                    lat = p.getFloat(K_LAT, 0);
-                    lon = p.getFloat(K_LON, 0);
-                    place = p.getString(K_PLACE, "");
+                    lat = p.getFloat(K_LAT, DEF_LAT);
+                    lon = p.getFloat(K_LON, DEF_LON);
+                    place = p.getString(K_PLACE, DEF_PLACE);
                 } else {
                     double[] ll = new double[2];
                     place = locate(ll);
@@ -569,22 +572,58 @@ final class Weather {
         e.remove(K_CACHE_AT).apply();
     }
 
-    /** WMO weather code -> short description, as Apple Weather words it. */
+    /** WMO weather code -> short description. */
     static String describe(int code, boolean day) {
         switch (code) {
-            case 0: return day ? "Sunny" : "Clear";
-            case 1: return day ? "Mostly Sunny" : "Mostly Clear";
-            case 2: return "Partly Cloudy";
-            case 3: return "Cloudy";
-            case 45: case 48: return "Foggy";
-            case 51: case 53: case 55: case 56: case 57: return "Drizzle";
-            case 61: case 63: case 80: case 81: return "Rain";
-            case 65: case 82: return "Heavy Rain";
-            case 66: case 67: return "Sleet";
-            case 71: case 73: case 75: case 77: case 85: case 86: return "Snow";
-            case 95: case 96: case 99: return "Thunderstorms";
+            case 0: return day ? "Sol" : "Céu limpo";
+            case 1: return day ? "Sol entre nuvens" : "Quase limpo";
+            case 2: return "Parcialmente nublado";
+            case 3: return "Nublado";
+            case 45: case 48: return "Neblina";
+            case 51: case 53: case 55: case 56: case 57: return "Garoa";
+            case 61: case 63: case 80: case 81: return "Chuva";
+            case 65: case 82: return "Chuva forte";
+            case 66: case 67: return "Chuva congelante";
+            case 71: case 73: case 75: case 77: case 85: case 86: return "Neve";
+            case 95: case 96: case 99: return "Trovoadas";
             default: return "";
         }
+    }
+
+    static boolean wet(int code) {
+        return code >= 51 && code != 71 && code != 73 && code != 75 && code != 77 && code != 85 && code != 86;
+    }
+
+    /**
+     * The one line of advice under the forecast, from the next few hours: rain first, then a
+     * noticeable drop in temperature, then heat. Null when the hours say nothing worth a pill.
+     */
+    static String tip(Data d) {
+        if (d == null || d.hours.isEmpty()) return null;
+        int n = Math.min(8, d.hours.size());
+        for (int i = 0; i < n; i++) {
+            Hour h = d.hours.get(i);
+            if (wet(h.code)) {
+                return "Leva guarda-chuva · " + describe(h.code, h.day).toLowerCase(PT)
+                        + " por volta das " + hourLabel(h) + "h";
+            }
+        }
+        Hour cold = null;
+        for (int i = 0; i < n; i++) {
+            Hour h = d.hours.get(i);
+            if (h.temp <= d.temp - 4 && (cold == null || h.temp < cold.temp)) cold = h;
+        }
+        if (cold != null) return "Esfria para " + cold.temp + "° às " + hourLabel(cold) + "h";
+        if (d.temp >= 32) return "Dia quente · beba água, máxima de " + d.max + "°";
+        return null;
+    }
+
+    static final Locale PT = new Locale("pt", "BR");
+
+    private static String hourLabel(Hour h) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(h.time);
+        return String.valueOf(cal.get(Calendar.HOUR_OF_DAY));
     }
 
     private static String get(String url) throws Exception {

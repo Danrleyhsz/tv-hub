@@ -76,9 +76,9 @@ final class Perms {
         if (hasAdmin(a)) return;
         if (!adminSupported(a)) {
             new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle("Not available on this TV")
-                    .setMessage("This TV doesn't let apps turn the screen off, so Power Off and the Sleep Timer can't work "
-                            + "here. Use the power button on the remote.")
+                    .setTitle("Não existe nesta TV")
+                    .setMessage("Esta TV não deixa um app apagar a tela, então Desligar e o timer de sono não funcionam "
+                            + "aqui. Use o botão de liga/desliga do controle.")
                     .setPositiveButton("OK", null).show();
             return;
         }
@@ -86,19 +86,19 @@ final class Perms {
             // Device admin is switched off on this TV: use Hume's accessibility switch instead.
             Intent acc = accessibilityScreen(a);
             new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle("Turn on Power Off")
-                    .setMessage("In the next screen, choose \u201cHume Launcher \u2013 Power Off\u201d and turn it on. "
-                            + "It only lets Hume put the TV to sleep.")
-                    .setPositiveButton("Open Accessibility", (d, w) -> tryStart(a, acc))
-                    .setNegativeButton("Cancel", null).show();
+                    .setTitle("Ligar o Desligar")
+                    .setMessage("Na próxima tela, escolha \u201cHume Launcher \u2013 Power Off\u201d e ligue. "
+                            + "Isso só deixa o launcher suspender a TV.")
+                    .setPositiveButton("Abrir acessibilidade", (d, w) -> tryStart(a, acc))
+                    .setNegativeButton("Cancelar", null).show();
             return;
         }
         Intent i = new Intent(DevicePolicyManager.ACTION_ADD_DEVICE_ADMIN)
                 .putExtra(DevicePolicyManager.EXTRA_DEVICE_ADMIN, admin(a))
                 .putExtra(DevicePolicyManager.EXTRA_ADD_EXPLANATION,
-                        "Lets Hume Launcher turn the screen off for Power Off and the Sleep Timer. It can't do anything else.");
+                        "Deixa o launcher apagar a tela no Desligar e no timer de sono. Mais nada.");
         if (tryStart(a, i)) return;
-        lastResort(a, "Power Off & Sleep Timer",
+        lastResort(a, "Desligar e timer de sono",
                 "adb shell dpm set-active-admin com.petrobot.hume/.SleepReceiver\\$Admin");
     }
 
@@ -106,9 +106,9 @@ final class Perms {
         if (hasListener(a)) return;
         if (!listenerSupported(a)) {
             new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle("Not available on this TV")
-                    .setMessage("This TV has limited memory, so Android doesn't let apps read what's playing. "
-                            + "Continue Watching and Do Not Disturb can't work here.")
+                    .setTitle("Não existe nesta TV")
+                    .setMessage("Esta TV tem pouca memória, então o Android não deixa um app ler o que está tocando. "
+                            + "Continuar assistindo e Não perturbe não funcionam aqui.")
                     .setPositiveButton("OK", null).show();
             return;
         }
@@ -119,7 +119,7 @@ final class Perms {
         }
         if (tryStart(a, new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))) return;
         if (tryStart(a, new Intent("android.settings.NOTIFICATION_POLICY_ACCESS_SETTINGS"))) return;
-        lastResort(a, "Continue Watching & Do Not Disturb",
+        lastResort(a, "Continuar assistindo e Não perturbe",
                 "adb shell cmd notification allow_listener com.petrobot.hume/com.petrobot.hume.MediaWatchService");
     }
 
@@ -144,7 +144,7 @@ final class Perms {
     }
 
     /**
-     * Become the home screen: Android 10+'s "Set as default home app?" prompt, else the TV's Home
+     * Become the home screen: Android 10+'s "Definir como tela inicial padrão?" prompt, else the TV's Home
      * app settings (when it is a real screen), else Android's chooser, and only then the command.
      */
     static void requestDefaultHome(Activity a) {
@@ -166,7 +166,7 @@ final class Perms {
         android.content.pm.ResolveInfo def = a.getPackageManager().resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY);
         boolean noDefault = def == null || def.activityInfo == null || "android".equals(def.activityInfo.packageName);
         if (noDefault && tryStart(a, home.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))) return;
-        lastResort(a, "Home screen",
+        lastResort(a, "Tela inicial",
                 "adb shell cmd package set-home-activity com.petrobot.hume/.MainActivity\n"
                         + "(on Google TV also: adb shell pm disable-user --user 0 com.google.android.tvlauncher)");
     }
@@ -175,10 +175,10 @@ final class Perms {
     private static void lastResort(Activity a, String what, String cmd) {
         new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(what)
-                .setMessage("This TV's settings have no switch for this permission. Whoever set up the TV can turn it on "
-                        + "once from a computer on the same network:\n\n" + cmd)
+                .setMessage("Os ajustes desta TV não têm essa permissão. Quem configurou a TV pode ligar "
+                        + "uma vez, de um computador na mesma rede:\n\n" + cmd)
                 .setPositiveButton("OK", null)
-                .setNeutralButton("App info", (d, w) -> tryStart(a, new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                .setNeutralButton("Sobre o app", (d, w) -> tryStart(a, new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                         Uri.parse("package:" + a.getPackageName()))))
                 .show();
     }

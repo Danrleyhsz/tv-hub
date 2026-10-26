@@ -21,6 +21,7 @@ import android.content.pm.ResolveInfo;
 import android.content.res.Resources;
 import android.content.res.TypedArray;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
@@ -68,6 +69,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -88,10 +90,11 @@ public class MainActivity extends Activity {
             "com.netflix.ninja",
             "com.amazon.amazonvideo.livingroom",
             "org.smarttube.stable",
-            "in.startv.hotstar",
             "com.apple.atve.androidtv.appletv",
+            "com.disney.disneyplus",
+            "com.wbd.stream",
+            "com.globo.globotv",
             "com.spotify.tv.android",
-            "com.mitv.tvhome.mitvplus",
             "com.google.android.youtube.tv",
             "org.videolan.vlc",
             "io.github.jqssun.airplay");
@@ -122,7 +125,7 @@ public class MainActivity extends Activity {
     final Map<String, AppEntry> all = new LinkedHashMap<>();
     /** Visible home apps, in user order. */
     final List<AppEntry> apps = new ArrayList<>();
-    /** Apps the user hid; reachable through the "More Apps" folder tile. */
+    /** Apps the user hid; reachable through the "Mais apps" folder tile. */
     final List<AppEntry> hiddenApps = new ArrayList<>();
     /** What the grid currently shows: home apps (+ folder tile) or the folder's contents. */
     final List<AppEntry> shown = new ArrayList<>();
@@ -130,7 +133,8 @@ public class MainActivity extends Activity {
     final Handler handler = new Handler(Looper.getMainLooper());
 
     FrameLayout root;
-    ImageView wallView;
+    ImageView wallView, wallFade;
+    int photoIndex;
     /** Top shelf carousel: two crossfading backdrops + info panel. */
     ImageView heroBack, heroFront;
     View heroScrim, shade;
@@ -297,7 +301,7 @@ public class MainActivity extends Activity {
             pickerLayer = null;
             weatherOpen = false;
             root.removeView(l);
-            weatherCard.setAlpha(weatherAlpha());
+            homeBox.setAlpha(weatherAlpha());
         }
         closeMenu();
         // Home pressed while already on the home screen: jump back to the top of the home grid.
@@ -305,7 +309,7 @@ public class MainActivity extends Activity {
         if (folderMode) {
             folderMode = false;
             switcher.setAlpha(1f);
-            weatherCard.setAlpha(weatherAlpha());
+            homeBox.setAlpha(weatherAlpha());
             launchTile = null;
             buildGrid();
             shelfEntry = null;
@@ -356,10 +360,10 @@ public class MainActivity extends Activity {
         if (SetupActivity.done(this) && !Perms.isDefaultHome(this) && !prefs.getBoolean("asked_default_home", false)) {
             prefs.edit().putBoolean("asked_default_home", true).apply();
             new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle("Make Hume your home screen?")
-                    .setMessage("The Home button on the remote will open Hume Launcher.")
-                    .setPositiveButton("Make Home Screen", (d, w) -> Perms.requestDefaultHome(this))
-                    .setNegativeButton("Not Now", null).show();
+                    .setTitle("Usar como tela inicial?")
+                    .setMessage("O botão Home do controle vai abrir este launcher.")
+                    .setPositiveButton("Usar como inicial", (d, w) -> Perms.requestDefaultHome(this))
+                    .setNegativeButton("Agora não", null).show();
         }
         handler.removeCallbacks(weatherTick);
         handler.post(weatherTick);
@@ -401,8 +405,13 @@ public class MainActivity extends Activity {
         wallView = new ImageView(this);
         wallView.setScaleType(ImageView.ScaleType.CENTER_CROP);
         wallStyle = Profiles.homePrefs(this).getString("wallpaper", "aurora");
-        setWallpaper(wallStyle);
         root.addView(wallView, match());
+        // Sits on top of the wallpaper only while one photo crossfades into the next.
+        wallFade = new ImageView(this);
+        wallFade.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        wallFade.setAlpha(0f);
+        root.addView(wallFade, match());
+        setWallpaper(wallStyle);
 
         heroBack = heroLayer();
         heroFront = heroLayer();
@@ -430,7 +439,7 @@ public class MainActivity extends Activity {
         scroll.setOnScrollChangeListener((v, x, y, ox, oy) -> {
             if (launchOverlay == null && !statusFocused()) clockBox.setAlpha(clockAlpha());
             if (launchOverlay == null && !switcher.isFocused()) switcher.setAlpha(folderMode ? 0f : clockAlpha());
-            if (launchOverlay == null && weatherCard != null && !weatherCard.isFocused()) weatherCard.setAlpha(weatherAlpha());
+            if (launchOverlay == null && weatherCard != null && !weatherCard.isFocused()) homeBox.setAlpha(weatherAlpha());
             if (dockRow != null) dockRow.invalidate();
         });
 
@@ -489,14 +498,6 @@ public class MainActivity extends Activity {
         clockBox.setOrientation(LinearLayout.HORIZONTAL);
         clockBox.setGravity(Gravity.CENTER_VERTICAL);
         clockBox.setClipChildren(false);
-        TextClock time = new TextClock(this);
-        Ui.textSize(time, 16);
-        time.setTypeface(Ui.font(this, "medium"));
-        time.setTextColor(Color.WHITE);
-        time.setShadowLayer(dp(6), 0, dp(1), 0x66000000);
-        time.setFormat12Hour("h:mm a");
-        time.setFormat24Hour("H:mm");
-        time.setAllCaps(true);
         // Internet status, left of the time: white when online, orange when there is no internet.
         netIcon = new ImageView(this);
         LinearLayout.LayoutParams nlp = new LinearLayout.LayoutParams(dp(24), dp(20));
@@ -505,14 +506,13 @@ public class MainActivity extends Activity {
         LinearLayout timeChip = new LinearLayout(this);
         timeChip.setOrientation(LinearLayout.HORIZONTAL);
         timeChip.setGravity(Gravity.CENTER_VERTICAL);
-        timeChip.setPadding(dp(12), 0, dp(14), 0);
+        timeChip.setPadding(dp(10), 0, dp(10), 0);
         GradientDrawable chipBg = new GradientDrawable();
         chipBg.setCornerRadius(btn / 2f);
         chipBg.setColor(0x47000000);
         timeChip.setBackground(chipBg);
-        time.setShadowLayer(dp(8), 0, dp(1), 0x99000000);
+        nlp.rightMargin = 0;
         timeChip.addView(netIcon, nlp);
-        timeChip.addView(time);
         clockBox.addView(timeChip, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, btn));
 
         // Refresh: reloads every part of the carousel (recommendations, news, Continue Watching) and weather.
@@ -623,20 +623,82 @@ public class MainActivity extends Activity {
         weatherCard.setClickable(true);
         weatherCard.setOnFocusChangeListener((v, has) -> {
             weatherGlass.setLit(has);
-            if (has) v.setAlpha(1f);
+            // The whole column, not just the card inside it - but never while the screensaver is up.
+            if (has && !idle) homeBox.setAlpha(1f);
             v.animate().scaleX(has ? 1.05f : 1f).scaleY(has ? 1.05f : 1f).translationZ(has ? dp(10) : 0)
                     .setDuration(200).setInterpolator(LIFT).start();
         });
         weatherCard.setPivotX(0);
         weatherCard.setPivotY(0);
         weatherCard.setOnClickListener(v -> showWeather());
-        // Top left, level with the status row and inside the same 48 px edge margin.
-        FrameLayout.LayoutParams wlp = new FrameLayout.LayoutParams(dp(WeatherView.COMPACT_W), dp(WeatherView.COMPACT_H),
+        // Top left, one column: the clock, the date, the weather and the advice pill.
+        homeBox = new LinearLayout(this);
+        homeBox.setOrientation(LinearLayout.VERTICAL);
+        homeBox.setClipChildren(false);
+        homeBox.setClipToPadding(false);
+
+        TextClock bigClock = new TextClock(this);
+        Ui.textSize(bigClock, 86);
+        bigClock.setTypeface(Ui.font(this, "thin"));
+        bigClock.setTextColor(Color.WHITE);
+        bigClock.setShadowLayer(dp(10), 0, dp(2), 0x80000000);
+        bigClock.setFormat12Hour("h:mm");
+        bigClock.setFormat24Hour("H:mm");
+        bigClock.setIncludeFontPadding(false);
+        homeBox.addView(bigClock, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        TextClock date = new Capitalized(this);
+        Ui.textSize(date, 15);
+        date.setTypeface(Ui.font(this, "medium"));
+        date.setTextColor(Color.WHITE);
+        date.setShadowLayer(dp(8), 0, dp(1), 0x99000000);
+        String dateFmt = "EEEE, d 'de' MMMM";
+        date.setFormat12Hour(dateFmt);
+        date.setFormat24Hour(dateFmt);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        dlp.topMargin = dp(2);
+        dlp.bottomMargin = dp(14);
+        homeBox.addView(date, dlp);
+
+        homeBox.addView(weatherCard, new LinearLayout.LayoutParams(
+                dp(WeatherView.COMPACT_W), dp(WeatherView.COMPACT_H)));
+
+        tipPill = new TextView(this);
+        Ui.textSize(tipPill, 11.5f);
+        tipPill.setTypeface(Ui.font(this, "medium"));
+        tipPill.setTextColor(Color.WHITE);
+        tipPill.setSingleLine(true);
+        tipPill.setGravity(Gravity.CENTER_VERTICAL);
+        tipPill.setPadding(dp(13), 0, dp(13), 0);
+        LiquidGlass tipGlass = new LiquidGlass(dp(26) / 2f, 0x2E000000, glassSource, screenW, screenH, unit).adaptive();
+        tipGlass.lens = dp(5);
+        tipPill.setBackground(tipGlass);
+        tipPill.setVisibility(View.GONE);
+        LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(26));
+        tlp.topMargin = dp(10);
+        homeBox.addView(tipPill, tlp);
+
+        FrameLayout.LayoutParams hlp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
                 Gravity.TOP | Gravity.START);
-        wlp.topMargin = dp(24);
-        wlp.leftMargin = dockOuter;
-        root.addView(weatherCard, wlp);
+        hlp.topMargin = dp(20);
+        hlp.leftMargin = dockOuter;
+        root.addView(homeBox, hlp);
         updateWeather();
+
+        // The clock, the weather and the status row live above the grid and fade out as it scrolls
+        // up. Without a carousel in between, focus can jump straight to them from a grid row, so
+        // the page has to come back with it or the focus lands somewhere invisible.
+        root.getViewTreeObserver().addOnGlobalFocusChangeListener((lost, gained) -> {
+            if (gained == null || scroll.getScrollY() == 0) return;
+            if (gained == weatherCard || gained == switcher || gained == ccButton
+                    || gained == avatarView || gained == refreshButton || gained == searchButton) {
+                scroll.smoothScrollTo(0, 0);
+            }
+        });
 
         setContentView(root);
     }
@@ -653,8 +715,8 @@ public class MainActivity extends Activity {
         // Like tvOS, the home grid has no big title; only the folder gets a header.
         titleBox.setVisibility(folderMode ? View.VISIBLE : View.GONE);
         chevron.setVisibility(folderMode ? View.GONE : View.VISIBLE);
-        shelfTitle.setText("More Apps");
-        shelfHint.setText("Back to return   \u00b7   Hold OK for options");
+        shelfTitle.setText("Mais apps");
+        shelfHint.setText("Voltar para sair   \u00b7   Segure OK para as opções");
 
         // Removing the focused card would make Android hand focus to the first card (and scroll
         // to the top); block that while rebuilding \u2014 callers focus the right card afterwards.
@@ -816,6 +878,8 @@ public class MainActivity extends Activity {
         wallBlur = Ui.glassBackdrop(wp, 192, 108);
         if (!heroShown || heroBlur == null) glassBg = wallBlur;
         invalidateGlass();
+        handler.removeCallbacks(photoTick);
+        if (WALL_PHOTOS.equals(style)) handler.postDelayed(photoTick, PHOTO_MS);
     }
 
     void invalidateGlass() {
@@ -825,11 +889,90 @@ public class MainActivity extends Activity {
         if (menuLayer != null && menuLayer.getChildCount() > 0) menuLayer.getChildAt(0).invalidate();
     }
 
-    static final String[] WALL_KEYS = {"aurora", "midnight", "sunset", "ocean", "graphite"};
-    static final String[] WALL_NAMES = {"Aurora", "Midnight", "Sunset", "Ocean", "Graphite"};
+    static final String[] WALL_KEYS = {"fotos", "aurora", "midnight", "sunset", "ocean", "graphite"};
+    static final String[] WALL_NAMES = {"Paisagens", "Aurora", "Midnight", "Sunset", "Ocean", "Graphite"};
+    static final String WALL_PHOTOS = "fotos";
+    /** How long one landscape stays up before the next one fades in. */
+    static final long PHOTO_MS = 15 * 60_000L;
+
+    /**
+     * Where the landscapes live. It belongs to the app, so no storage permission is involved:
+     *   adb push foto.jpg /sdcard/Android/data/com.petrobot.hume/files/Pictures/
+     */
+    java.io.File photoDir() {
+        return getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES);
+    }
+
+    List<java.io.File> photos() {
+        java.io.File dir = photoDir();
+        java.io.File[] fs = dir == null ? null : dir.listFiles();
+        List<java.io.File> out = new ArrayList<>();
+        if (fs == null) return out;
+        for (java.io.File f : fs) {
+            String n = f.getName().toLowerCase(Locale.US);
+            if (f.isFile() && (n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".png"))) out.add(f);
+        }
+        java.util.Collections.sort(out);
+        return out;
+    }
+
+    /** Decodes a landscape at roughly screen size; null when it cannot be read. */
+    Bitmap loadPhoto(java.io.File f) {
+        try {
+            BitmapFactory.Options o = new BitmapFactory.Options();
+            o.inJustDecodeBounds = true;
+            BitmapFactory.decodeFile(f.getPath(), o);
+            int sample = 1;
+            while (o.outWidth / (sample * 2) >= screenW && o.outHeight / (sample * 2) >= screenH) sample *= 2;
+            BitmapFactory.Options d = new BitmapFactory.Options();
+            d.inSampleSize = sample;
+            d.inPreferredConfig = Bitmap.Config.ARGB_8888;
+            d.inMutable = true;
+            return BitmapFactory.decodeFile(f.getPath(), d);
+        } catch (Throwable t) {
+            return null;  // unreadable or too large: the gradient stands in
+        }
+    }
 
     Bitmap makeWallpaper(String style) {
+        if (WALL_PHOTOS.equals(style)) {
+            List<java.io.File> ps = photos();
+            if (!ps.isEmpty()) {
+                Bitmap b = loadPhoto(ps.get(photoIndex % ps.size()));
+                if (b != null) return bakeShade(b);
+            }
+        }
         return bakeShade(makeWallpaperBase(style));
+    }
+
+    final Runnable photoTick = this::nextPhoto;
+
+    /** Fades in the next landscape and queues the one after it. */
+    void nextPhoto() {
+        handler.removeCallbacks(photoTick);
+        if (!WALL_PHOTOS.equals(wallStyle) || wallFade == null) return;
+        List<java.io.File> ps = photos();
+        if (ps.size() < 2) return;
+        photoIndex = (photoIndex + 1) % ps.size();
+        java.io.File next = ps.get(photoIndex);
+        io.execute(() -> {
+            Bitmap raw = loadPhoto(next);
+            if (raw == null) return;
+            Bitmap shaded = bakeShade(raw);
+            Bitmap blur = Ui.glassBackdrop(shaded, 192, 108);
+            handler.post(() -> {
+                wallFade.setImageBitmap(shaded);
+                wallFade.animate().alpha(1f).setDuration(1200).withEndAction(() -> {
+                    wallView.setImageBitmap(shaded);
+                    wallFade.setAlpha(0f);
+                    wallFade.setImageDrawable(null);
+                    wallBlur = blur;
+                    if (!heroShown || heroBlur == null) glassBg = wallBlur;
+                    invalidateGlass();
+                }).start();
+                handler.postDelayed(photoTick, PHOTO_MS);
+            });
+        });
     }
 
     /** The bottom darkening that keeps the dock and labels legible, painted into the image. */
@@ -1358,7 +1501,7 @@ public class MainActivity extends Activity {
         return v;
     }
 
-    /** Title logo (or title), meta line, overview, "Open in \u2026" capsule and page dots, bottom-left of the shelf. */
+    /** Title logo (or title), meta line, overview, "Abrir em \u2026" capsule and page dots, bottom-left of the shelf. */
     void buildHeroInfo(FrameLayout shelf) {
         heroInfo = new LinearLayout(this);
         heroInfo.setOrientation(LinearLayout.VERTICAL);
@@ -1421,7 +1564,7 @@ public class MainActivity extends Activity {
         btnRow.addView(heroButton, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(32)));
         heroRemove = text(13, Ui.font(this, "semibold"), 1f);
         heroRemove.setShadowLayer(0, 0, 0, 0);
-        heroRemove.setText("\u2715  Remove");
+        heroRemove.setText("\u2715  Tirar");
         heroRemove.setGravity(Gravity.CENTER);
         heroRemove.setPadding(dp(16), 0, dp(18), 0);
         heroRemoveBg = new GradientDrawable();
@@ -1631,7 +1774,7 @@ public class MainActivity extends Activity {
 
     /** Continue Watching can be switched off per profile (Settings -> Continue Watching). */
     boolean cwEnabled() {
-        return Profiles.homePrefs(this).getBoolean("cw_enabled", true);
+        return Profiles.homePrefs(this).getBoolean("cw_enabled", false);
     }
 
     /** The tab bar only appears when there are two things to switch between. */
@@ -1729,10 +1872,10 @@ public class MainActivity extends Activity {
         boolean show = continueMode() && heroItems.isEmpty() && !folderMode;
         if (show) {
             shelfEmpty.setText(MediaWatchService.granted(this)
-                    ? "Shows and movies you play will appear here."
+                    ? "Os filmes e séries que você assistir aparecem aqui."
                     : !Perms.listenerSupported(this)
-                    ? "Continue Watching isn't available on this TV (Android limits it on low-memory TVs)."
-                    : "To see what you watch here, allow it in Settings \u2192 Permissions.");
+                    ? "Continuar assistindo não funciona nesta TV (o Android bloqueia em TVs com pouca memória)."
+                    : "Para ver aqui o que você assiste, permita em Ajustes \u2192 Permissões.");
         }
         shelfEmpty.animate().alpha(show ? 0.75f : 0f).setDuration(250).start();
     }
@@ -1787,8 +1930,12 @@ public class MainActivity extends Activity {
         invalidateGlass();
         float a = show ? 1f : 0f;
         if (!show) wallView.setVisibility(View.VISIBLE);
+        if (!show && wallFade != null) wallFade.setVisibility(View.VISIBLE);
         heroFront.animate().alpha(a).setDuration(450).withEndAction(() -> {
-            if (heroShown && heroFront.getAlpha() >= 1f) wallView.setVisibility(View.INVISIBLE);
+            if (heroShown && heroFront.getAlpha() >= 1f) {
+                wallView.setVisibility(View.INVISIBLE);
+                if (wallFade != null) wallFade.setVisibility(View.INVISIBLE);
+            }
         }).start();
         heroScrim.setVisibility(View.GONE);
 
@@ -1872,10 +2019,10 @@ public class MainActivity extends Activity {
             List<String> meta = new ArrayList<>();
             meta.add(appLabel(it.pkg));
             if (it.remainingMin > 0) meta.add(it.remainingMin >= 60
-                    ? (it.remainingMin / 60) + " h " + (it.remainingMin % 60) + " min left" : it.remainingMin + " min left");
+                    ? (it.remainingMin / 60) + " h " + (it.remainingMin % 60) + " min restantes" : it.remainingMin + " min restantes");
             heroMeta.setText(String.join("  \u00B7  ", meta));
             heroOverview.setText(it.overview);
-            heroBtnText.setText("\u25B6  Resume");
+            heroBtnText.setText("\u25B6  Continuar");
             try {
                 heroProvider.setImageDrawable(getPackageManager().getApplicationIcon(it.pkg));
                 heroProvider.setVisibility(View.VISIBLE);
@@ -1914,13 +2061,13 @@ public class MainActivity extends Activity {
         }
         List<String> meta = new ArrayList<>();
         if (!it.year.isEmpty()) meta.add(it.year);
-        meta.add(it.type.equals("tv") ? "Series" : "Movie");
+        meta.add(it.type.equals("tv") ? "Série" : "Filme");
         if (!it.genres.isEmpty()) meta.add(it.genres);
         if (it.rating > 0) meta.add(String.format(java.util.Locale.US, "\u2605 %.1f", it.rating));
         heroMeta.setText(String.join("  \u00B7  ", meta));
         heroOverview.setText(it.overview);
         Suggestions.Provider p = it.provider(this);
-        heroBtnText.setText(p != null && !Suggestions.installed(this, p.pkg) ? "Get" : "\u25B6  Open");
+        heroBtnText.setText(p != null && !Suggestions.installed(this, p.pkg) ? "Instalar" : "\u25B6  Abrir");
         int icon = p == null ? 0 : getResources().getIdentifier("provider_" + p.jwShort, "drawable", getPackageName());
         heroProvider.setImageResource(icon);
         heroProvider.setVisibility(icon == 0 ? View.GONE : View.VISIBLE);
@@ -1973,6 +2120,23 @@ public class MainActivity extends Activity {
     SearchPanel search;
     android.net.ConnectivityManager.NetworkCallback netCallback;
     WeatherView weatherCard;
+    LinearLayout homeBox;
+    TextView tipPill;
+
+    /** The date reads better with a capital first letter; pt-BR formats it lower case. */
+    static class Capitalized extends TextClock {
+        Capitalized(android.content.Context c) {
+            super(c);
+        }
+
+        @Override
+        public void setText(CharSequence t, BufferType type) {
+            if (t != null && t.length() > 0) {
+                t = Character.toUpperCase(t.charAt(0)) + t.subSequence(1, t.length()).toString();
+            }
+            super.setText(t, type);
+        }
+    }
     LiquidGlass weatherGlass;
     int avatarSize;
     FrameLayout pickerLayer;
@@ -2054,7 +2218,7 @@ public class MainActivity extends Activity {
         selectRemove(false);
         lastCwSig = "";
         heroVersion = -1;
-        toast("Removed " + it.title);
+        toast("Tirado: " + it.title);
         loadHero();
     }
 
@@ -2096,9 +2260,9 @@ public class MainActivity extends Activity {
                         Suggestions.Item it = heroItems.get(heroIndex);
                         List<String> l = new ArrayList<>();
                         List<Runnable> act = new ArrayList<>();
-                        l.add("Resume");
+                        l.add("Continuar");
                         act.add(() -> openHeroItem(it));
-                        l.add("Remove from Continue Watching");
+                        l.add("Tirar de continuar assistindo");
                         act.add(() -> {
                             MediaWatchService.Store.remove(this, it.key);
                             heroItems = new ArrayList<>();
@@ -2308,7 +2472,7 @@ public class MainActivity extends Activity {
                 .setUpdateListener(null).start();
         clockBox.animate().alpha(0f).setDuration(250).start();
         switcher.animate().alpha(0f).setDuration(250).start();
-        weatherCard.animate().alpha(0f).setDuration(250).start();
+        homeBox.animate().alpha(0f).setDuration(250).start();
 
         handler.postDelayed(() -> {
             try {
@@ -2317,7 +2481,7 @@ public class MainActivity extends Activity {
                 startActivity(a.launch, opts);
                 noteLaunched(a.pkg);
             } catch (ActivityNotFoundException | SecurityException e) {
-                toast("Can't open " + a.label);
+                toast("Não dá pra abrir " + a.label);
                 finishLaunchReturn();
             }
         }, 380);
@@ -2338,7 +2502,7 @@ public class MainActivity extends Activity {
                 .setUpdateListener(null).withEndAction(this::invalidateGlass).start();
         clockBox.animate().alpha(clockAlpha()).setDuration(420).start();
         switcher.animate().alpha(folderMode ? 0f : clockAlpha()).setDuration(420).start();
-        weatherCard.animate().alpha(weatherAlpha()).setDuration(420).start();
+        homeBox.animate().alpha(weatherAlpha()).setDuration(420).start();
         if (tile != null) tile.animate().alpha(1f).setDuration(300).start();
         ov.animate().withLayer().alpha(0f).scaleX(0.96f).scaleY(0.96f).setDuration(300)
                 .setListener(new AnimatorListenerAdapter() {
@@ -2632,7 +2796,7 @@ public class MainActivity extends Activity {
     AppEntry folderEntry() {
         AppEntry f = new AppEntry();
         f.key = FOLDER_KEY;
-        f.label = "More Apps";
+        f.label = "Mais apps";
         f.color = 0xFF3A3A3C;
         f.banner = new BitmapDrawable(getResources(), folderArt());
         f.icon = f.banner;
@@ -2689,7 +2853,7 @@ public class MainActivity extends Activity {
             folderMode = true;
             setHeroShown(false);
             switcher.setAlpha(0f);
-            weatherCard.setAlpha(0f);
+            homeBox.setAlpha(0f);
             shelfEmpty.setAlpha(0f);
             buildGrid();
             shelfEntry = null;
@@ -2702,7 +2866,7 @@ public class MainActivity extends Activity {
         animateGridSwap(() -> {
             folderMode = false;
             switcher.animate().alpha(1f).setDuration(250).start();
-            weatherCard.animate().alpha(weatherAlpha()).setDuration(250).start();
+            homeBox.animate().alpha(weatherAlpha()).setDuration(250).start();
             buildGrid();
             shelfEntry = null;
             int i = indexOfKey(FOLDER_KEY);
@@ -2869,7 +3033,7 @@ public class MainActivity extends Activity {
         AppEntry s = new AppEntry();
         s.key = SETTINGS_KEY;
         s.pkg = TV_SETTINGS;
-        s.label = "Settings";
+        s.label = "Ajustes";
         s.system = true;
         s.launch = new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         try {
@@ -2901,7 +3065,7 @@ public class MainActivity extends Activity {
         AppEntry e = new AppEntry();
         e.key = INPUTS_KEY;
         e.pkg = getPackageName();
-        e.label = "Inputs";
+        e.label = "Entradas";
         e.system = true;
         e.color = 0xFF48484A;
         int w = 640, h = 384;
@@ -2922,7 +3086,7 @@ public class MainActivity extends Activity {
         AppEntry e = new AppEntry();
         e.key = PRESENT_KEY;
         e.pkg = getPackageName();
-        e.label = "Presentation";
+        e.label = "Apresentação";
         e.system = true;
         e.color = 0xFF4370FF;
         e.launch = new Intent(this, com.petrobot.hume.present.PresentationActivity.class)
@@ -3011,7 +3175,7 @@ public class MainActivity extends Activity {
         buildGrid();
         shelfEntry = null;
         focusIndex(Math.min(i, shown.size() - 1));
-        toast(hide ? a.label + " moved to More Apps" : a.label + " is back on Home");
+        toast(hide ? a.label + " foi para Mais apps" : a.label + " voltou para a tela inicial");
     }
 
     void registerPackageReceiver() {
@@ -3041,36 +3205,36 @@ public class MainActivity extends Activity {
         View tile = tiles.get(index);
         List<String> labels = new ArrayList<>();
         List<Runnable> actions = new ArrayList<>();
-        labels.add("Open");
+        labels.add("Abrir");
         actions.add(() -> launchAnimated(tile, a));
         if (folderMode) {
-            labels.add("Show on Home Screen");
+            labels.add("Mostrar na tela inicial");
             actions.add(() -> setHidden(a, false));
         } else {
-            labels.add("Move");
+            labels.add("Mover");
             actions.add(() -> startMove(index));
             if (!isSettings(a)) {
-                labels.add("Hide");
+                labels.add("Esconder");
                 actions.add(() -> setHidden(a, true));
             }
         }
         if (!isSettings(a) && !INPUTS_KEY.equals(a.key)) {
-            labels.add("App Info");
+            labels.add("Sobre o app");
             actions.add(() -> startSafe(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                     Uri.parse("package:" + a.pkg))));
             if (!a.system) {
-                labels.add("Uninstall");
+                labels.add("Desinstalar");
                 actions.add(() -> startSafe(new Intent(Intent.ACTION_DELETE, Uri.parse("package:" + a.pkg))));
             }
         }
         if (!folderMode) {
-            labels.add("Reset Layout");
+            labels.add("Reorganizar");
             actions.add(() -> {
                 prefs.edit().remove(PREF_ORDER).apply();
                 reload(a.key);
             });
         }
-        showMenu(tile, a.label, labels, actions, labels.indexOf("Uninstall"));
+        showMenu(tile, a.label, labels, actions, labels.indexOf("Desinstalar"));
     }
 
     // ---------------------------------------------------------------- Control Center
@@ -3096,10 +3260,10 @@ public class MainActivity extends Activity {
         List<View> cells = new ArrayList<>();
 
         // Row 1: Power | Memory (used bar; OK cleans). Row 2: Wi-Fi | Do Not Disturb.
-        cells.add(ccTile(panel, 0, 0, col, cap, "power", "Power Off", null, false, v -> {
+        cells.add(ccTile(panel, 0, 0, col, cap, "power", "Desligar", null, false, v -> {
             if (!SleepReceiver.sleepNow(this)) Perms.requestAdmin(this);
         }));
-        View mem = ccTile(panel, col + gap, 0, col, cap, "memory", "Memory", this::memoryState, false, v -> cleanMemory());
+        View mem = ccTile(panel, col + gap, 0, col, cap, "memory", "Memória", this::memoryState, false, v -> cleanMemory());
         addMemoryBar(mem);
         cells.add(mem);
         cells.add(ccTile(panel, 0, cap + gap, col, cap, "wifi", "Wi-Fi", this::wifiName, false,
@@ -3108,13 +3272,13 @@ public class MainActivity extends Activity {
                     if (!Perms.hasLocation(this)) Perms.requestLocation(this);
                     else Suggestions.start(this, new Intent(Settings.ACTION_WIFI_SETTINGS));
                 }));
-        cells.add(ccTile(panel, col + gap, cap + gap, col, cap, "moon", "Do Not Disturb", this::dndState, false,
+        cells.add(ccTile(panel, col + gap, cap + gap, col, cap, "moon", "Não perturbe", this::dndState, false,
                 v -> toggleDnd()));
         // Row 3: Audio | Sleep Timer
         int y3 = 2 * (cap + gap);
-        cells.add(ccTile(panel, 0, y3, col, cap, "audio", "Audio", this::audioOutput, false,
+        cells.add(ccTile(panel, 0, y3, col, cap, "audio", "Áudio", this::audioOutput, false,
                 v -> Suggestions.start(this, new Intent("android.settings.SOUND_SETTINGS"))));
-        cells.add(ccTile(panel, col + gap, y3, col, cap, "timer", "Sleep Timer", this::timerState, false,
+        cells.add(ccTile(panel, col + gap, y3, col, cap, "timer", "Timer de sono", this::timerState, false,
                 v -> cycleSleepTimer()));
         // Row 4: round shortcuts \u2014 Inputs (TVs with inputs) or Accessibility, controllers, Settings, Search.
         int y4 = y3 + cap + gap;
@@ -3255,7 +3419,7 @@ public class MainActivity extends Activity {
     }
 
     String memoryState() {
-        return Math.round(memoryUsed() * 100) + "% used  \u00b7  Clean";
+        return Math.round(memoryUsed() * 100) + "% em uso  \u00b7  Limpar";
     }
 
     View memBarFill;
@@ -3320,7 +3484,7 @@ public class MainActivity extends Activity {
         android.app.ActivityManager am = getSystemService(android.app.ActivityManager.class);
         List<String> apps = recentApps();
         if (apps.isEmpty()) {
-            toast("No apps to close");
+            toast("Nenhum app para fechar");
             return;
         }
         long before = availMem(am);
@@ -3335,7 +3499,7 @@ public class MainActivity extends Activity {
             getSharedPreferences("clean", MODE_PRIVATE).edit().remove("recent").apply();
             long freed = Math.max(0, availMem(am) - before) / (1024 * 1024);
             updateMemoryBar();
-            toast("Closed " + apps.size() + (apps.size() == 1 ? " app" : " apps") + (freed > 0 ? " \u00b7 freed " + freed + " MB" : ""));
+            toast("Fechados: " + apps.size() + (apps.size() == 1 ? " app" : " apps") + (freed > 0 ? " \u00b7 liberou " + freed + " MB" : ""));
         };
         if (PowerService.instance != null) {
             closeProfilePicker();
@@ -3355,21 +3519,21 @@ public class MainActivity extends Activity {
         try {
             android.net.ConnectivityManager cm = getSystemService(android.net.ConnectivityManager.class);
             android.net.NetworkCapabilities nc = cm.getNetworkCapabilities(cm.getActiveNetwork());
-            if (nc == null) return "Not Connected";
+            if (nc == null) return "Sem conexão";
             if (nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_ETHERNET)) return "Ethernet";
-            if (!nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) return "Connected";
+            if (!nc.hasTransport(android.net.NetworkCapabilities.TRANSPORT_WIFI)) return "Conectado";
             android.net.wifi.WifiManager wm = getApplicationContext().getSystemService(android.net.wifi.WifiManager.class);
             String ssid = wm.getConnectionInfo().getSSID();
-            if (ssid == null || ssid.contains("unknown ssid")) return "Connected";
+            if (ssid == null || ssid.contains("unknown ssid")) return "Conectado";
             return ssid.replace("\"", "");
         } catch (Exception e) {
-            return "Connected";
+            return "Conectado";
         }
     }
 
     String dndState() {
         android.app.NotificationManager nm = getSystemService(android.app.NotificationManager.class);
-        return nm.getCurrentInterruptionFilter() > android.app.NotificationManager.INTERRUPTION_FILTER_ALL ? "On" : "Off";
+        return nm.getCurrentInterruptionFilter() > android.app.NotificationManager.INTERRUPTION_FILTER_ALL ? "Ligado" : "Desligado";
     }
 
     void toggleDnd() {
@@ -3378,7 +3542,7 @@ public class MainActivity extends Activity {
             Perms.requestListener(this);
             return;
         }
-        boolean on = dndState().equals("On");
+        boolean on = dndState().equals("Ligado");
         svc.requestInterruptionFilter(on ? NotificationListenerService.INTERRUPTION_FILTER_ALL
                 : NotificationListenerService.INTERRUPTION_FILTER_PRIORITY);
     }
@@ -3393,12 +3557,12 @@ public class MainActivity extends Activity {
                 default: break;
             }
         }
-        return "TV Speakers";
+        return "Alto-falantes da TV";
     }
 
     String timerState() {
         int left = SleepReceiver.timerLeft(this);
-        return left > 0 ? left + " min left" : "Off";
+        return left > 0 ? left + " min restantes" : "Desligado";
     }
 
     /** Off \u2192 15 \u2192 30 \u2192 60 \u2192 90 \u2192 Off. */
@@ -3424,7 +3588,7 @@ public class MainActivity extends Activity {
     void showInputs(View from) {
         List<Inputs.Input> list = Inputs.list(this);
         if (list.isEmpty()) {
-            toast("This TV has no inputs");
+            toast("Esta TV não tem entradas");
             return;
         }
         dropPicker();
@@ -3443,16 +3607,16 @@ public class MainActivity extends Activity {
         panel.setClipChildren(false);
         List<View> cells = new ArrayList<>();
         TextView title = text(13, Ui.font(this, "semibold"), 0.75f);
-        title.setText("Inputs");
+        title.setText("Entradas");
         panel.addView(title, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(20)));
         int top = dp(26);
         for (int i = 0; i < list.size(); i++) {
             Inputs.Input in = list.get(i);
             int x = (i % 2) * (col + gap), y = top + (i / 2) * (cap + gap);
             cells.add(ccTile(panel, x, y, col, cap, Inputs.glyph(in), in.label,
-                    in.disconnected ? () -> "Not connected" : null, false, v -> {
+                    in.disconnected ? () -> "Sem conexão" : null, false, v -> {
                         closeProfilePicker();
-                        if (!Inputs.open(this, in)) toast("Can't switch to " + in.label);
+                        if (!Inputs.open(this, in)) toast("Não dá pra trocar para " + in.label);
                     }));
         }
         int rows = (list.size() + 1) / 2;
@@ -3518,7 +3682,7 @@ public class MainActivity extends Activity {
         netEthernet = eth;
         netBars = bars;
         netIcon.setImageBitmap(netGlyph(state, eth, bars, dp(20)));
-        netIcon.setContentDescription(state == 2 ? "Online" : state == 1 ? "No internet" : "Offline");
+        netIcon.setContentDescription(state == 2 ? "Online" : state == 1 ? "Sem internet" : "Offline");
         // Back online: refresh what needs the internet.
         if (state == 2) AirPlayGuard.check(this, back);
         if (state == 2 && back) {
@@ -3649,12 +3813,14 @@ public class MainActivity extends Activity {
         heroItems = new ArrayList<>();
         loadHero();
         Weather.refresh(this, true, this::updateWeather);
-        toast("Refreshing");
+        toast("Atualizando");
     }
 
     // ---------------------------------------------------------------- idle full-screen carousel
 
     boolean idle, swallowUp;
+    boolean idlePhoto;   // the screensaver showing a landscape, not the carousel
+    View idleClock;
     float idleScrollY, idleInfoY, idleDotsY;
     boolean idleOverviewShown;
 
@@ -3679,9 +3845,14 @@ public class MainActivity extends Activity {
      * fade, and the carousel keeps playing full screen with its title and summary at the bottom.
      */
     void enterIdle() {
-        if (idle || !resumed || !heroShown || heroItems.isEmpty() || continueMode() || folderMode
+        if (idle || !resumed || folderMode
                 || launchOverlay != null || pickerLayer != null || menuLayer != null || moveIndex >= 0) {
             resetIdle();
+            return;
+        }
+        // No carousel to play: the landscape takes the whole screen instead, with a small clock.
+        if (!heroShown || heroItems.isEmpty() || continueMode()) {
+            enterPhotoIdle();
             return;
         }
         idle = true;
@@ -3694,7 +3865,7 @@ public class MainActivity extends Activity {
                 .setUpdateListener(null).start();
         heroInfo.animate().withLayer().translationY(0).setDuration(900).setInterpolator(EASE).start();
         heroDots.animate().withLayer().translationY(dp(4)).setDuration(900).setInterpolator(EASE).start();
-        weatherCard.animate().alpha(0f).setDuration(500).start();
+        homeBox.animate().alpha(0f).setDuration(500).start();
         switcher.animate().alpha(0f).setDuration(500).start();
         heroButton.animate().alpha(0f).setDuration(300).start();
         heroOverview.animate().cancel();
@@ -3704,15 +3875,90 @@ public class MainActivity extends Activity {
         scheduleAdvance();
     }
 
+    /** The landscape screensaver: everything but the photo and a small clock fades away. */
+    void enterPhotoIdle() {
+        // shortcut: only the Paisagens background has a screensaver, since the gradients have
+        // nothing to show full screen; give the gradients a slow drift if one is ever wanted.
+        if (!WALL_PHOTOS.equals(wallStyle) || photos().isEmpty()) {
+            resetIdle();
+            return;
+        }
+        idle = true;
+        idlePhoto = true;
+        if (idleClock == null) buildIdleClock();
+        idleScrollY = scroll.getTranslationY();
+        scroll.animate().cancel();
+        scroll.animate().withLayer().translationY(screenH).alpha(0f).setDuration(900).setInterpolator(EASE)
+                .setUpdateListener(null).start();
+        for (View v : new View[]{homeBox, clockBox, switcher, chevron}) {
+            v.animate().alpha(0f).setDuration(600).start();
+        }
+        idleClock.setVisibility(View.VISIBLE);
+        idleClock.animate().alpha(1f).setDuration(900).start();
+        nextPhoto();  // a different landscape every time it starts
+    }
+
+    /** Small clock and date in the top-left corner, shown only by the landscape screensaver. */
+    void buildIdleClock() {
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.VERTICAL);
+        TextClock t = new TextClock(this);
+        Ui.textSize(t, 34);
+        t.setTypeface(Ui.font(this, "thin"));
+        t.setTextColor(Color.WHITE);
+        t.setShadowLayer(dp(10), 0, dp(2), 0x80000000);
+        t.setFormat12Hour("h:mm");
+        t.setFormat24Hour("H:mm");
+        t.setIncludeFontPadding(false);
+        box.addView(t, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        TextClock d = new Capitalized(this);
+        Ui.textSize(d, 11);
+        d.setTypeface(Ui.font(this, "medium"));
+        d.setTextColor(Color.WHITE);
+        d.setAlpha(0.75f);
+        d.setShadowLayer(dp(8), 0, dp(1), 0x99000000);
+        String fmt = "EEEE, d 'de' MMMM";
+        d.setFormat12Hour(fmt);
+        d.setFormat24Hour(fmt);
+        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        dlp.topMargin = dp(2);
+        box.addView(d, dlp);
+        box.setAlpha(0f);
+        box.setVisibility(View.GONE);
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.TOP | Gravity.START);
+        lp.topMargin = dp(26);
+        lp.leftMargin = dockOuter;
+        root.addView(box, lp);
+        idleClock = box;
+    }
+
     void exitIdle() {
         if (!idle) return;
         idle = false;
+        if (idlePhoto) {
+            idlePhoto = false;
+            scroll.animate().cancel();
+            scroll.animate().withLayer().translationY(idleScrollY).alpha(1f).setDuration(450).setInterpolator(EASE)
+                    .setUpdateListener(null).withEndAction(this::invalidateGlass).start();
+            homeBox.animate().alpha(weatherAlpha()).setDuration(350).start();
+            clockBox.animate().alpha(clockAlpha()).setDuration(350).start();
+            switcher.animate().alpha(folderMode ? 0f : clockAlpha()).setDuration(350).start();
+            chevron.animate().alpha(1f).setDuration(350).start();
+            idleClock.animate().alpha(0f).setDuration(250)
+                    .withEndAction(() -> idleClock.setVisibility(View.GONE)).start();
+            resetIdle();
+            return;
+        }
         scroll.animate().cancel();
         scroll.animate().withLayer().translationY(idleScrollY).alpha(1f).setDuration(450).setInterpolator(EASE)
                 .setUpdateListener(null).withEndAction(this::invalidateGlass).start();
         heroInfo.animate().withLayer().translationY(idleInfoY).setDuration(450).setInterpolator(EASE).start();
         heroDots.animate().withLayer().translationY(idleDotsY).setDuration(450).setInterpolator(EASE).start();
-        weatherCard.animate().alpha(weatherAlpha()).setDuration(350).start();
+        homeBox.animate().alpha(weatherAlpha()).setDuration(350).start();
         switcher.animate().alpha(folderMode ? 0f : clockAlpha()).setDuration(350).start();
         if (shelfView.isFocused()) {
             heroButton.animate().alpha(1f).setDuration(300).start();
@@ -3728,7 +3974,7 @@ public class MainActivity extends Activity {
     // ---------------------------------------------------------------- weather
 
     /**
-     * Once a minute: fetch when the forecast is due (every 15 minutes by default), move "Now" on,
+     * Once a minute: fetch when the forecast is due (every 15 minutes by default), move "Agora" on,
      * and pick up Wi-Fi signal changes.
      */
     int tickCount;
@@ -3751,7 +3997,9 @@ public class MainActivity extends Activity {
     boolean weatherOpen;
 
     float weatherAlpha() {
-        return folderMode || weatherOpen ? 0f : clockAlpha();
+        // idle: the screensaver owns the screen, and the weather tick must not paint the column
+        // back over it a minute later.
+        return folderMode || weatherOpen || idle ? 0f : clockAlpha();
     }
 
     /** Shows the cached forecast (hidden when weather is off or nothing has loaded yet). */
@@ -3762,7 +4010,12 @@ public class MainActivity extends Activity {
         if (!show && weatherCard.isFocused()) focusTop();
         weatherCard.setVisibility(show ? View.VISIBLE : View.GONE);
         weatherCard.setData(d);
-        if (show && !weatherCard.isFocused() && launchOverlay == null) weatherCard.setAlpha(weatherAlpha());
+        if (show && !weatherCard.isFocused() && launchOverlay == null) homeBox.setAlpha(weatherAlpha());
+        String tip = show ? Weather.tip(d) : null;
+        if (tipPill != null) {
+            tipPill.setText(tip == null ? "" : tip);
+            tipPill.setVisibility(tip == null ? View.GONE : View.VISIBLE);
+        }
     }
 
     /** The full forecast: a glass panel opening from the weather card in the top-left corner. */
@@ -3797,7 +4050,7 @@ public class MainActivity extends Activity {
         pickerCells = new ArrayList<>();
         pickerCells.add(panel);
         weatherOpen = true;
-        weatherCard.animate().alpha(0f).setDuration(150).start();
+        homeBox.animate().alpha(0f).setDuration(150).start();
         layer.setAlpha(0f);
         panel.setTranslationY(-dp(10));
         layer.animate().alpha(1f).setDuration(200).start();
@@ -3867,7 +4120,7 @@ public class MainActivity extends Activity {
         col.setClipChildren(false);
         col.setClipToPadding(false);
         TextView title = text(30, Ui.font(this, "display"), 1f);
-        title.setText(onWake ? "Who\u2019s Watching?" : "Switch Profile");
+        title.setText(onWake ? "Quem está assistindo?" : "Trocar de perfil");
         title.setLetterSpacing(-0.02f);
         LinearLayout.LayoutParams tlp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         tlp.bottomMargin = dp(34);
@@ -3898,8 +4151,8 @@ public class MainActivity extends Activity {
             cells.add(cell);
         }
         if (Profiles.canAdd(this)) {
-            View add = profileCell(null, "Add User", true, false);
-            add.setOnClickListener(v -> askName("New Profile", "", name -> {
+            View add = profileCell(null, "Adicionar pessoa", true, false);
+            add.setOnClickListener(v -> askName("Novo perfil", "", name -> {
                 if (Profiles.add(this, name) != null) showProfilePicker(false);
             }));
             cells.add(add);
@@ -4200,7 +4453,7 @@ public class MainActivity extends Activity {
         pickerLayer = null;
         l.animate().alpha(0f).setDuration(220).withEndAction(() -> root.removeView(l)).start();
         weatherOpen = false;
-        weatherCard.animate().alpha(weatherAlpha()).setDuration(220).start();
+        homeBox.animate().alpha(weatherAlpha()).setDuration(220).start();
         if (popoverReturn != null && popoverReturn.isAttachedToWindow()) popoverReturn.requestFocus();
         else goTop();
         popoverReturn = null;
@@ -4216,14 +4469,14 @@ public class MainActivity extends Activity {
         Profiles.Profile prof = p;
         List<String> l = new ArrayList<>();
         List<Runnable> act = new ArrayList<>();
-        l.add("Rename");
-        act.add(() -> askName("Rename Profile", prof.name, name -> {
+        l.add("Renomear");
+        act.add(() -> askName("Renomear perfil", prof.name, name -> {
             prof.name = name;
             Profiles.update(this, prof);
             refreshAvatar();
             showProfilePicker(false);
         }));
-        l.add("Change Emoji");
+        l.add("Trocar o emoji");
         act.add(() -> {
             List<String> free = Profiles.freeEmojis(this, prof.id);
             String[] items = new String[free.size()];
@@ -4242,9 +4495,9 @@ public class MainActivity extends Activity {
                         showProfilePicker(false);
                     }).show();
         });
-        l.add("Change Colour");
+        l.add("Trocar a cor");
         act.add(() -> new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Colour")
+                .setTitle("Cor")
                 .setSingleChoiceItems(Profiles.COLOR_NAMES, prof.color, (d, w) -> {
                     prof.color = w;
                     Profiles.update(this, prof);
@@ -4255,17 +4508,17 @@ public class MainActivity extends Activity {
         int del = -1;
         if (Profiles.list(this).size() > 1) {
             del = l.size();
-            l.add("Delete");
+            l.add("Apagar");
             act.add(() -> new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle("Delete \u201C" + prof.name + "\u201D?")
-                    .setMessage("Its layout and Continue Watching list will be removed.")
-                    .setPositiveButton("Delete", (d, w) -> {
+                    .setTitle("Apagar \u201C" + prof.name + "\u201D?")
+                    .setMessage("A organização dos apps e o histórico dele vão embora.")
+                    .setPositiveButton("Apagar", (d, w) -> {
                         boolean wasCurrent = Profiles.current(this).id.equals(prof.id);
                         Profiles.delete(this, prof.id);
                         if (wasCurrent) switchProfile(Profiles.current(this).id);
                         showProfilePicker(false);
                     })
-                    .setNegativeButton("Cancel", null).show());
+                    .setNegativeButton("Cancelar", null).show());
         }
         showMenu(cell, prof.name, l, act, del);
     }
@@ -4286,11 +4539,11 @@ public class MainActivity extends Activity {
         new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
                 .setTitle(title)
                 .setView(box)
-                .setPositiveButton("Save", (d, w) -> {
+                .setPositiveButton("Salvar", (d, w) -> {
                     String n = in.getText().toString().trim();
                     if (!n.isEmpty()) r.ok(n.length() > 20 ? n.substring(0, 20) : n);
                 })
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton("Cancelar", null)
                 .show();
         in.requestFocus();
     }
@@ -4449,7 +4702,7 @@ public class MainActivity extends Activity {
         try {
             startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         } catch (ActivityNotFoundException e) {
-            toast("Not available on this TV");
+            toast("Não existe nesta TV");
         }
     }
 
@@ -4460,7 +4713,7 @@ public class MainActivity extends Activity {
         moveIndex = index;
         focusIndex(index);
         startWiggle(tiles.get(index));
-        toast("Use arrows to move \u00b7 OK when done");
+        toast("Setas para mover \u00b7 OK quando terminar");
     }
 
     void moveTo(int to) {

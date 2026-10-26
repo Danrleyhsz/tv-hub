@@ -16,7 +16,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Launcher profiles (like Apple TV's "Who's watching?"). Each profile keeps its own home layout
+ * Launcher profiles (like Apple TV's "Quem está assistindo?"). Each profile keeps its own home layout
  * (order, hidden apps), background, top-shelf tab and Continue Watching list. No lock.
  * The first profile ("p1") uses the original storage, so nothing is lost when profiles are added.
  */
@@ -40,8 +40,8 @@ final class Profiles {
             "\uD83D\uDC3C", "\uD83D\uDC2F", "\uD83E\uDD81", "\uD83D\uDC38", "\uD83D\uDC35",
             "\uD83D\uDC28", "\uD83E\uDD84", "\uD83D\uDC36", "\uD83D\uDC31", "\uD83D\uDC3B",
             "\uD83D\uDC30", "\uD83D\uDC7B", "\uD83E\uDD16", "\uD83D\uDC7D", "\uD83C\uDF83"};
-    static final String[] EMOJI_NAMES = {"Grin", "Cool", "Cowboy", "Party", "Fox", "Panda", "Tiger", "Lion", "Frog",
-            "Monkey", "Koala", "Unicorn", "Dog", "Cat", "Bear", "Bunny", "Ghost", "Robot", "Alien", "Pumpkin"};
+    static final String[] EMOJI_NAMES = {"Sorriso", "Estiloso", "Caubói", "Festa", "Raposa", "Panda", "Tigre", "Leão", "Sapo",
+            "Macaco", "Coala", "Unicórnio", "Cachorro", "Gato", "Urso", "Coelho", "Fantasma", "Robô", "Alien", "Abóbora"};
 
     /** Emoji not used by any profile other than `exceptId`. */
     static List<String> freeEmojis(Context c, String exceptId) {
@@ -67,7 +67,7 @@ final class Profiles {
             {0xFFD3C4F7, 0xFF4B2E99},   // lavender
             {0xFFFFCFA8, 0xFF8A4512},   // peach
             {0xFFD9DCE3, 0xFF3A3D45}};  // silver
-    static final String[] COLOR_NAMES = {"Sky", "Pink", "Mint", "Lemon", "Lavender", "Peach", "Silver"};
+    static final String[] COLOR_NAMES = {"Céu", "Rosa", "Menta", "Limão", "Lavanda", "Pêssego", "Prata"};
 
     static SharedPreferences store(Context c) {
         return c.getSharedPreferences("profiles", Context.MODE_PRIVATE);
@@ -91,7 +91,7 @@ final class Profiles {
         if (out.isEmpty()) {
             Profile p = new Profile();
             p.id = "p1";
-            p.name = "Me";
+            p.name = "Eu";
             p.color = 0;
             out.add(p);
         }
