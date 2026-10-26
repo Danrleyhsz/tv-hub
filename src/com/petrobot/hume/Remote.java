@@ -25,7 +25,8 @@ import java.util.Map;
  * <p>Three kinds of button, because Android allows three different things to an app like this:
  * <ul>
  *   <li>volume and opening an app work always;</li>
- *   <li>Home, Back and Recents work in any app, through the accessibility service the user turns
+ *   <li>Home works always too: the launcher is the home app, so the button is the home intent;</li>
+ *   <li>Back and Recents work in any app, through the accessibility service the user turns
  *       on once (the same one the Power Off button already uses);</li>
  *   <li>the arrows and OK only reach the launcher's own screen. Android only lets an accessibility
  *       service press a D-pad key from Android 13 ({@code GLOBAL_ACTION_DPAD_*}, API 33) and this
@@ -86,7 +87,7 @@ public final class Remote {
             case "mute":
                 return volume(c, AudioManager.ADJUST_TOGGLE_MUTE);
             case "home":
-                return global(AccessibilityService.GLOBAL_ACTION_HOME);
+                return home(c);
             case "back":
                 return global(AccessibilityService.GLOBAL_ACTION_BACK);
             case "recents":
@@ -103,6 +104,21 @@ public final class Remote {
         if (am == null) return "sem controle de volume";
         am.adjustStreamVolume(AudioManager.STREAM_MUSIC, direction, AudioManager.FLAG_SHOW_UI);
         return null;
+    }
+
+    /**
+     * The launcher is the home app, so the Home button is just the home intent: no accessibility
+     * service involved (performGlobalAction(GLOBAL_ACTION_HOME) does nothing on this TV).
+     */
+    private static String home(Context c) {
+        try {
+            c.startActivity(new Intent(Intent.ACTION_MAIN)
+                    .addCategory(Intent.CATEGORY_HOME)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            return null;
+        } catch (Exception e) {
+            return global(AccessibilityService.GLOBAL_ACTION_HOME);
+        }
     }
 
     private static String global(int action) {

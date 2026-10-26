@@ -376,14 +376,14 @@ public class SettingsActivity extends Activity {
             Remote.setEnabled(this, on);
             if (on) Toast.makeText(this, "Ligado. Abra o endereço abaixo no celular.", Toast.LENGTH_LONG).show();
         });
-        row("Endereço e código de pareamento", () -> Remote.enabled(this)
+        row("Endereço e código", () -> Remote.enabled(this)
                 ? com.petrobot.hume.present.Presenter.address().replace("http://", "") + "/controle"
                 : "Ligue primeiro", this::showRemoteInfo);
         section("O que o celular consegue fazer");
-        row("Volume e abrir apps", () -> "Sempre", () -> {
+        row("Volume, Início e abrir apps", () -> "Sempre", () -> {
         });
-        row("Início, Voltar e Recentes", () -> Remote.serviceOn() ? "Ligado" : "Precisa de permissão",
-                () -> Perms.requestAccessibility(this, "Início, Voltar e Recentes pelo celular passam pelo "
+        row("Voltar e Recentes", () -> Remote.serviceOn() ? "Ligado" : "Precisa de permissão",
+                () -> Perms.requestAccessibility(this, "Voltar e Recentes pelo celular passam pelo "
                         + "serviço de acessibilidade do TV Hub."));
         row("Setas e OK", () -> android.os.Build.VERSION.SDK_INT >= 33 ? "Em qualquer app" : "Só na tela do TV Hub",
                 () -> Toast.makeText(this, "O Android só deixa um app mandar seta para outros apps a partir do "

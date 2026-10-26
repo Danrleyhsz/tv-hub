@@ -86,7 +86,7 @@ async function refresh() {
       ? ''
       : 'As setas e o OK mexem na tela do TV Hub. Dentro de um app, use o controle da TV.';
     if (!body.service) {
-      baseHint = 'Ligue o serviço de acessibilidade do TV Hub para Início, Voltar e Recentes funcionarem.';
+      baseHint = 'Ligue o serviço de acessibilidade do TV Hub para Voltar e Recentes funcionarem.';
     }
     $('hint').textContent = baseHint;
     drawApps(body.apps || []);
