@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="theme-color" content="#0b0b0f">
+<title>Controle da TV</title>
+<link rel="stylesheet" href="controle.css">
+</head>
+<body>
+
+<div id="pair" class="screen">
+  <h1>Controle da TV</h1>
+  <p class="sub">Digite o código que está na TV, em Ajustes &rsaquo; Controle pelo celular.</p>
+  <input id="pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="000000" autocomplete="off">
+  <button id="pairBtn" class="primary">Parear</button>
+  <p id="pairErr" class="err"></p>
+</div>
+
+<div id="remote" class="screen hidden">
+  <header>
+    <span id="dot" class="dot"></span>
+    <span id="status">TV conectada</span>
+  </header>
+
+  <div class="pad">
+    <button class="key up"    data-key="up"    aria-label="Para cima"></button>
+    <button class="key left"  data-key="left"  aria-label="Para a esquerda"></button>
+    <button class="key ok"    data-key="ok">OK</button>
+    <button class="key right" data-key="right" aria-label="Para a direita"></button>
+    <button class="key down"  data-key="down"  aria-label="Para baixo"></button>
+  </div>
+
+  <p id="hint" class="hint"></p>
+
+  <div class="row">
+    <button class="pill" data-key="back">Voltar</button>
+    <button class="pill" data-key="home">Início</button>
+    <button class="pill" data-key="recents">Recentes</button>
+  </div>
+
+  <div class="row">
+    <button class="pill wide" data-key="voldown">Volume &minus;</button>
+    <button class="pill" data-key="mute">Mudo</button>
+    <button class="pill wide" data-key="volup">Volume +</button>
+  </div>
+
+  <h2>Abrir um app</h2>
+  <div id="apps" class="apps"></div>
+</div>
+
+<script src="controle.js"></script>
+</body>
+</html>

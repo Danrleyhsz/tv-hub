@@ -29,7 +29,7 @@ rm -rf build && mkdir -p build/gen build/classes build/dex
 
 "$AAPT2" compile --dir res -o build/res.zip
 "$AAPT2" link -o build/unsigned.apk -I "$JAR" --manifest AndroidManifest.xml \
-    -A assets --java build/gen --min-sdk-version 24 --target-sdk-version 34 \
+    --java build/gen --min-sdk-version 24 --target-sdk-version 34 \
     --version-code "${VERSION_CODE:-1}" --version-name "${VERSION_NAME:-1.0}" build/res.zip
 
 javac -encoding UTF-8 --release 11 -classpath "$JAR" \
@@ -41,6 +41,10 @@ if command -v zip >/dev/null 2>&1; then
 else
     (cd build/dex && jar uf ../unsigned.apk classes.dex)
 fi
+
+# The assets go in with jar instead of aapt2 -A: on Windows aapt2 writes the entry names
+# with backslashes, and then getAssets().open() finds nothing at runtime.
+jar uf build/unsigned.apk assets
 
 "$ZIPALIGN" -f 4 build/unsigned.apk build/aligned.apk
 

@@ -47,7 +47,7 @@ public final class Presenter {
         prefs(c).edit().putBoolean(key, on).apply();
         if (K_ENABLED.equals(key)) {
             if (on) ensureRunning(c);
-            else stop();
+            else if (!com.petrobot.hume.Remote.enabled(c)) stop();
         }
     }
 
@@ -65,7 +65,8 @@ public final class Presenter {
 
     /** Starts the admin server when the feature is enabled (call from launcher start and boot). */
     public static synchronized void ensureRunning(Context c) {
-        if (!enabled(c)) return;
+        // The same server serves the presentation and the phone remote; either one keeps it up.
+        if (!enabled(c) && !com.petrobot.hume.Remote.enabled(c)) return;
         init(c);
         if (server == null) {
             server = new AdminServer(c, repo, pairing, new AdminServer.Gateway() {
@@ -118,6 +119,11 @@ public final class Presenter {
     /** QR code for the admin address (Settings shows it with the pairing code). */
     public static android.graphics.Bitmap qr(int size) {
         return Qr.bitmap(address(), size);
+    }
+
+    /** QR code for any page on this server, such as the phone remote. */
+    public static android.graphics.Bitmap qr(String url, int size) {
+        return Qr.bitmap(url, size);
     }
 
     public static final String KEY_ENABLED = K_ENABLED, KEY_BOOT = K_BOOT, KEY_AWAKE = K_AWAKE, KEY_INFO = K_INFO;

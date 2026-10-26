@@ -48,7 +48,8 @@ public class SettingsActivity extends Activity {
     }
 
     // tvOS-style pages: the main list opens a page per section; Back returns to the main list.
-    static final String ROOT = "root", PROFILES = "Perfis", SHELF = "Prateleira de cima", PRESENT = "Apresentação",
+    static final String ROOT = "root", PROFILES = "Perfis", SHELF = "Prateleira de cima",
+            REMOTE = "Controle pelo celular", PRESENT = "Apresentação",
             INPUTS = "Entradas", WEATHER = "Clima", WATCHING = "Continuar assistindo", HOME = "Tela inicial",
             PERMS = "Permissões", ABOUT = "Sobre";
 
@@ -94,6 +95,7 @@ public class SettingsActivity extends Activity {
         switch (p) {
             case PROFILES: pageProfiles(); break;
             case SHELF: pageShelf(); break;
+            case REMOTE: pageRemote(); break;
             case PRESENT: pagePresentation(); break;
             case INPUTS: pageInputs(); break;
             case WEATHER: pageWeather(); break;
@@ -234,6 +236,7 @@ public class SettingsActivity extends Activity {
                 default: return "Recomendações e notícias";
             }
         });
+        nav(REMOTE, () -> Remote.enabled(this) ? "Ligado" : "Desligado");
         nav(PRESENT, () -> com.petrobot.hume.present.Presenter.enabled(this) ? "Ligado" : "Desligado");
         if (!Inputs.list(this).isEmpty()) nav(INPUTS, () -> Inputs.showCard(this) ? "Ligado" : "Desligado");
         nav(WEATHER, () -> !Weather.enabled(this) ? "Desligado" : Weather.place(this).isEmpty() ? "Ligado" : Weather.place(this));
@@ -365,6 +368,55 @@ public class SettingsActivity extends Activity {
                     Suggestions.changed(this);
                     refreshAll();
                 }).setNegativeButton("Cancelar", null).show();
+    }
+
+    void pageRemote() {
+        row("Controle pelo celular", () -> Remote.enabled(this) ? "Ligado" : "Desligado", () -> {
+            boolean on = !Remote.enabled(this);
+            Remote.setEnabled(this, on);
+            if (on) Toast.makeText(this, "Ligado. Abra o endereço abaixo no celular.", Toast.LENGTH_LONG).show();
+        });
+        row("Endereço e código de pareamento", () -> Remote.enabled(this)
+                ? com.petrobot.hume.present.Presenter.address().replace("http://", "") + "/controle"
+                : "Ligue primeiro", this::showRemoteInfo);
+        section("O que o celular consegue fazer");
+        row("Volume e abrir apps", () -> "Sempre", () -> {
+        });
+        row("Início, Voltar e Recentes", () -> Remote.serviceOn() ? "Ligado" : "Precisa de permissão",
+                () -> Perms.requestAccessibility(this, "Início, Voltar e Recentes pelo celular passam pelo "
+                        + "serviço de acessibilidade do TV Hub."));
+        row("Setas e OK", () -> android.os.Build.VERSION.SDK_INT >= 33 ? "Em qualquer app" : "Só na tela do TV Hub",
+                () -> Toast.makeText(this, "O Android só deixa um app mandar seta para outros apps a partir do "
+                        + "Android 13; esta TV tem o 12.", Toast.LENGTH_LONG).show());
+    }
+
+    void showRemoteInfo() {
+        if (!Remote.enabled(this)) {
+            Toast.makeText(this, "Ligue o controle pelo celular primeiro", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        com.petrobot.hume.present.Presenter.ensureRunning(this);
+        String url = com.petrobot.hume.present.Presenter.address() + "/controle";
+        LinearLayout box = new LinearLayout(this);
+        box.setOrientation(LinearLayout.HORIZONTAL);
+        box.setGravity(Gravity.CENTER_VERTICAL);
+        int pad = Ui.px(this, 16);
+        box.setPadding(pad, pad, pad, pad / 2);
+        android.widget.ImageView qr = new android.widget.ImageView(this);
+        qr.setImageBitmap(com.petrobot.hume.present.Presenter.qr(url, Ui.px(this, 110)));
+        qr.setBackgroundColor(Color.WHITE);
+        qr.setPadding(Ui.px(this, 6), Ui.px(this, 6), Ui.px(this, 6), Ui.px(this, 6));
+        box.addView(qr, new LinearLayout.LayoutParams(Ui.px(this, 122), Ui.px(this, 122)));
+        TextView info = new TextView(this);
+        String pin = com.petrobot.hume.present.Presenter.pin(this);
+        info.setText("Aponte a câmera do celular para o QR, ou abra no mesmo Wi-Fi:\n\n" + url
+                + "\n\nCódigo de pareamento\n" + pin.substring(0, 3) + " " + pin.substring(3));
+        info.setTextColor(Color.WHITE);
+        info.setTypeface(Ui.font(this, "medium"));
+        Ui.textSize(info, 14);
+        info.setPadding(Ui.px(this, 18), 0, 0, 0);
+        box.addView(info);
+        dialog("Controle pelo celular").setView(box).setPositiveButton("Pronto", null).show();
     }
 
     void pagePresentation() {

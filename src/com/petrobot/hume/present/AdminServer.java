@@ -182,6 +182,10 @@ final class AdminServer {
         if (p.equals("/app.js")) { asset(out, "app.js", "application/javascript; charset=utf-8"); return; }
         if (p.equals("/logo.png")) { asset(out, "logo.png", "image/png"); return; }
         if (p.equals("/icon.svg")) { asset(out, "icon.svg", "image/svg+xml"); return; }
+        // Phone remote
+        if (p.equals("/controle") || p.equals("/controle.html")) { asset(out, "controle.html", "text/html; charset=utf-8"); return; }
+        if (p.equals("/controle.css")) { asset(out, "controle.css", "text/css; charset=utf-8"); return; }
+        if (p.equals("/controle.js")) { asset(out, "controle.js", "application/javascript; charset=utf-8"); return; }
         if (p.equals("/api/info")) { json(out, 200, info()); return; }
         if (p.equals("/api/pair") && "POST".equals(r.method)) {
             String token = pairing.pair(body(r).optString("pin"));
@@ -228,6 +232,15 @@ final class AdminServer {
         } else if (seg.length == 4 && seg[1].equals("playlists") && seg[3].equals("activate") && "POST".equals(r.method)) {
             gateway.reload();
             json(out, 200, new JSONObject().put("playlist", repo.playlist().toJson()));
+        } else if (p.equals("/api/remote/state") && "GET".equals(r.method)) {
+            json(out, 200, com.petrobot.hume.Remote.state(context)
+                    .put("apps", com.petrobot.hume.Remote.apps(context)));
+        } else if (p.equals("/api/remote/key") && "POST".equals(r.method)) {
+            String why = com.petrobot.hume.Remote.press(context, body(r).optString("key"));
+            json(out, why == null ? 200 : 409, new JSONObject().put("ok", why == null).put("error", why));
+        } else if (p.equals("/api/remote/launch") && "POST".equals(r.method)) {
+            String why = com.petrobot.hume.Remote.launch(context, body(r).optString("pkg"));
+            json(out, why == null ? 200 : 409, new JSONObject().put("ok", why == null).put("error", why));
         } else if (p.equals("/api/playback/status") && "GET".equals(r.method)) {
             json(out, 200, new JSONObject().put("playback", gateway.status().toJson()));
         } else if (p.equals("/api/playback/control") && "POST".equals(r.method)) {

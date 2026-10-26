@@ -47,6 +47,9 @@ Windows e para usar `jar` quando não existe `zip` (Git Bash não traz `zip`).
       provedores de streaming (Netflix, Prime, Apple TV, Disney+, Max, Globoplay, Crunchyroll),
       região do TMDB/JustWatch em BR, idiomas, voz em pt-BR e teclado de acentos no lugar do
       devanágari.
+- [x] Controle pelo celular (no lugar dos bilhetes do print 07): página em `/controle` servida
+      pelo próprio launcher, com pareamento por PIN e QR em Ajustes → Controle pelo celular.
+      Setas, OK, Voltar, Início, Recentes, volume e abrir apps.
 
 ## Fotos do fundo
 
@@ -61,11 +64,12 @@ pasta vazia o fundo cai no gradiente Aurora. **Desinstalar ou limpar os dados ap
 
 ## Falta
 
-- [ ] Bilhetes do celular (prints 04, 07, 08) — reaproveitar o `present/AdminServer` + QR.
 - [ ] Assistente de IA (prints 09–11) — adiado a pedido.
 - [ ] Medir o desempenho do foco na TV (seção 6 do spec).
-- [ ] Legenda da foto no canto inferior direito do protetor de tela (print 06) e o bilhete
-      translúcido no canto superior direito (print 05) — depende dos bilhetes.
+- [ ] Legenda da foto no canto inferior direito do protetor de tela (print 06).
+- [ ] Setas e OK em qualquer app: o Android só libera isso para um serviço de acessibilidade a
+      partir do 13 (`GLOBAL_ACTION_DPAD_*`), e a TV está no 12. Hoje as setas só mexem na tela do
+      próprio launcher; volume, Início, Voltar, Recentes e abrir app funcionam em qualquer lugar.
 
 ## Decisões / pendências
 

@@ -77,6 +77,8 @@ import java.util.Set;
 public class MainActivity extends Activity {
 
     static final int COLS = 6;
+    /** The phone remote reaches the launcher through here; null while it is not on screen. */
+    static MainActivity instance;
     static final String SETTINGS_KEY = "special:settings";
     static final String PRESENT_KEY = "special:present";
     static final String INPUTS_KEY = "special:inputs";
@@ -192,6 +194,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onCreate(Bundle b) {
+        instance = this;
         super.onCreate(b);
         // The wallpaper/artwork always covers the screen: skip the window's own full-screen fill
         // (this Mali-450 GPU is fill-rate bound, so every hidden full-screen layer costs frames).
@@ -381,6 +384,7 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (instance == this) instance = null;
         super.onDestroy();
         if (pkgReceiver != null) unregisterReceiver(pkgReceiver);
         if (netCallback != null) {

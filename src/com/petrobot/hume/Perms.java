@@ -72,6 +72,23 @@ final class Perms {
         if (!hasLocation(a)) a.requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQ_LOCATION);
     }
 
+    /** Opens the TV's accessibility list so the user can switch the launcher's service on. */
+    static void requestAccessibility(Activity a, String why) {
+        Intent acc = accessibilityScreen(a);
+        if (acc == null) {
+            new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    .setTitle("Não existe nesta TV")
+                    .setMessage("Esta TV não tem a tela de acessibilidade, então não dá para ligar o serviço.")
+                    .setPositiveButton("OK", null).show();
+            return;
+        }
+        new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Ligar o serviço")
+                .setMessage(why + "\n\nNa próxima tela, escolha \u201cTV Hub \u2013 Desligar\u201d e ligue.")
+                .setPositiveButton("Abrir acessibilidade", (d, w) -> tryStart(a, acc))
+                .setNegativeButton("Cancelar", null).show();
+    }
+
     static void requestAdmin(Activity a) {
         if (hasAdmin(a)) return;
         if (!adminSupported(a)) {
