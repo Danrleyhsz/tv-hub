@@ -3878,7 +3878,6 @@ public class MainActivity extends Activity {
 
     boolean idle, swallowUp;
     boolean idlePhoto;   // the screensaver showing a landscape, not the carousel
-    View idleClock;
     float idleScrollY, idleInfoY, idleDotsY;
     boolean idleOverviewShown;
 
@@ -3946,8 +3945,7 @@ public class MainActivity extends Activity {
         }
         idle = true;
         idlePhoto = true;
-        if (saverLayer == null) buildSaver();  // before the clock, so the clock sits on top
-        if (idleClock == null) buildIdleClock();
+        if (saverLayer == null) buildSaver();
         idleScrollY = scroll.getTranslationY();
         scroll.animate().cancel();
         scroll.animate().withLayer().translationY(screenH).alpha(0f).setDuration(900).setInterpolator(EASE)
@@ -3955,12 +3953,9 @@ public class MainActivity extends Activity {
         for (View v : new View[]{homeBox, clockBox, switcher, chevron}) {
             v.animate().alpha(0f).setDuration(600).start();
         }
-        idleClock.setVisibility(View.VISIBLE);
-        idleClock.animate().alpha(1f).setDuration(900).start();
         stopWallpaperDrift();
         saverIndex = (int) (Math.random() * saverFiles.size());  // a different picture every time it starts
         saverImage.setImageDrawable(null);
-        saverCaption.setAlpha(0f);
         saverLayer.setVisibility(View.VISIBLE);
         saverLayer.animate().alpha(1f).setDuration(900).start();
         nextSaverPicture();
@@ -3968,45 +3963,24 @@ public class MainActivity extends Activity {
 
     FrameLayout saverLayer;
     ImageView saverImage;
-    LinearLayout saverCaption;
-    TextView saverTitle, saverArtist;
     List<java.io.File> saverFiles = new ArrayList<>();
     int saverIndex;
     final Runnable saverTick = this::nextSaverPicture;
 
-    /** Black full-screen layer for the screensaver picture, with the label in the bottom-right corner. */
+    /**
+     * The screensaver is the picture and nothing else: no clock, no caption, no frame. The point
+     * is a picture hanging on the wall, and anything drawn over it gives away that it is a screen.
+     */
     void buildSaver() {
         FrameLayout layer = new FrameLayout(this);
         layer.setBackgroundColor(Color.BLACK);
         saverImage = new ImageView(this);
-        layer.addView(saverImage, match());
-        LinearLayout cap = new LinearLayout(this);
-        cap.setOrientation(LinearLayout.VERTICAL);
-        cap.setGravity(Gravity.END);
-        saverTitle = new TextView(this);
-        Ui.textSize(saverTitle, 12);
-        saverTitle.setTypeface(Ui.font(this, "medium"));
-        saverArtist = new TextView(this);
-        Ui.textSize(saverArtist, 10);
-        saverArtist.setTypeface(Ui.font(this, "regular"));
-        saverArtist.setAlpha(0.7f);
-        for (TextView t : new TextView[]{saverTitle, saverArtist}) {
-            t.setTextColor(Color.WHITE);
-            t.setShadowLayer(dp(8), 0, dp(1), 0x99000000);
-            t.setGravity(Gravity.END);
-            t.setMaxWidth(screenW / 3);
-            cap.addView(t);
-        }
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.BOTTOM | Gravity.END);
-        lp.bottomMargin = dp(26);
-        lp.rightMargin = dockOuter;
-        layer.addView(cap, lp);
+        saverImage.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        layer.addView(saverImage, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         layer.setAlpha(0f);
         layer.setVisibility(View.GONE);
         root.addView(layer, match());
-        saverCaption = cap;
         saverLayer = layer;
     }
 
@@ -4015,66 +3989,20 @@ public class MainActivity extends Activity {
         handler.removeCallbacks(saverTick);
         if (!idlePhoto || saverFiles.isEmpty()) return;
         java.io.File f = saverFiles.get(saverIndex++ % saverFiles.size());
-        boolean framed = Themes.framed(this);
         io.execute(() -> {
-            Bitmap raw = loadPhoto(f);
-            Bitmap shown = raw == null ? null : framed ? Themes.frame(raw, screenW, screenH) : raw;
-            String[] cap = Themes.caption(f.getName());
+            Bitmap shown = loadPhoto(f);
             handler.post(() -> {
                 if (!idlePhoto) return;
                 if (shown != null) {
                     long out = saverImage.getDrawable() == null ? 0 : 700;
-                    saverCaption.animate().alpha(0f).setDuration(out).start();
                     saverImage.animate().alpha(0f).setDuration(out).withEndAction(() -> {
-                        saverImage.setScaleType(framed ? ImageView.ScaleType.FIT_XY : ImageView.ScaleType.CENTER_CROP);
                         saverImage.setImageBitmap(shown);
-                        saverTitle.setText(cap == null ? "" : cap[0]);
-                        saverArtist.setText(cap == null ? "" : cap[1]);
                         saverImage.animate().alpha(1f).setDuration(1200).start();
-                        saverCaption.animate().alpha(cap == null ? 0f : 1f).setDuration(1200).start();
                     }).start();
                 }
                 handler.postDelayed(saverTick, SAVER_MS);  // an unreadable file is skipped on the next tick
             });
         });
-    }
-
-    /** Small clock and date in the top-left corner, shown only by the landscape screensaver. */
-    void buildIdleClock() {
-        LinearLayout box = new LinearLayout(this);
-        box.setOrientation(LinearLayout.VERTICAL);
-        TextClock t = new TextClock(this);
-        Ui.textSize(t, 34);
-        t.setTypeface(Ui.font(this, "thin"));
-        t.setTextColor(Color.WHITE);
-        t.setShadowLayer(dp(10), 0, dp(2), 0x80000000);
-        t.setFormat12Hour("h:mm");
-        t.setFormat24Hour("H:mm");
-        t.setIncludeFontPadding(false);
-        box.addView(t, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        TextClock d = new Capitalized(this);
-        Ui.textSize(d, 11);
-        d.setTypeface(Ui.font(this, "medium"));
-        d.setTextColor(Color.WHITE);
-        d.setAlpha(0.75f);
-        d.setShadowLayer(dp(8), 0, dp(1), 0x99000000);
-        String fmt = "EEEE, d 'de' MMMM";
-        d.setFormat12Hour(fmt);
-        d.setFormat24Hour(fmt);
-        LinearLayout.LayoutParams dlp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        dlp.topMargin = dp(2);
-        box.addView(d, dlp);
-        box.setAlpha(0f);
-        box.setVisibility(View.GONE);
-        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.TOP | Gravity.START);
-        lp.topMargin = dp(26);
-        lp.leftMargin = dockOuter;
-        root.addView(box, lp);
-        idleClock = box;
     }
 
     void exitIdle() {
@@ -4089,8 +4017,6 @@ public class MainActivity extends Activity {
             clockBox.animate().alpha(clockAlpha()).setDuration(350).start();
             switcher.animate().alpha(folderMode ? 0f : clockAlpha()).setDuration(350).start();
             chevron.animate().alpha(1f).setDuration(350).start();
-            idleClock.animate().alpha(0f).setDuration(250)
-                    .withEndAction(() -> idleClock.setVisibility(View.GONE)).start();
             handler.removeCallbacks(saverTick);
             startWallpaperDrift();
             saverLayer.animate().alpha(0f).setDuration(350).withEndAction(() -> {

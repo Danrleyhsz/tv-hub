@@ -72,6 +72,14 @@ Windows e para usar `jar` quando não existe `zip` (Git Bash não traz `zip`).
       Tema com menos de 6 fotos usa todas. O brilho é um palpite grosseiro, lido de uma miniatura
       e guardado por arquivo.
 
+- [x] Protetor refeito (2026-10-29): só a imagem na tela, sem relógio, sem legenda e sem moldura —
+      a ideia é parecer um quadro na parede, e qualquer coisa desenhada por cima entrega que é uma
+      tela. Saíram os pacotes de pintura: quadro é retrato, e cortá-lo para 16:9 mostra um pedaço
+      dele; o acervo também não entrega resolução para tela cheia. No lugar entrou "Vistas", 16
+      fotos do Commons (costas, cidades, lagos, cachoeiras, astronomia) na mesma regra do fundo.
+      Com isso saíram `Themes.frame()`, `Themes.caption()`, o relógio do protetor e a opção
+      "Estilo do protetor".
+
 ## Imagens
 
 Veja "Temas do fundo e do protetor" no README. **Desinstalar ou limpar os dados apaga as pastas.**

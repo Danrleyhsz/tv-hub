@@ -14,9 +14,9 @@ os apps. Sem recomendação, sem banner, sem patrocinado.
   1,2 s, com um movimento lento de zoom e deslize que nunca deixa a tela parada. A foto da vez
   acompanha a hora: as mais claras no meio do dia, as mais escuras à noite. Só entram fotos que já
   vêm maiores que 1920x1080, para a TV reduzir e não ampliar.
-- **Protetor de tela de pinturas**: depois de 5 min parado entra uma pintura numa moldura com
-  passe-partout (ou foto em tela cheia), com legenda de obra e artista, relógio pequeno e data.
-  Pacotes Impressionistas e Mestres e ukiyo-e. Troca a cada 3 min; qualquer tecla volta.
+- **Protetor de tela**: depois de 5 min parado, uma foto toma a tela inteira — sem relógio, sem
+  legenda, sem moldura, só a imagem, para parecer um quadro na parede. Troca a cada 3 min;
+  qualquer tecla volta.
 - **Central de controle**, busca (apps, ajustes, filmes e séries), entradas HDMI, perfis, timer de
   sono e protetor — tudo em português.
 
@@ -54,12 +54,11 @@ Cada tema é uma pasta de imagens dentro da pasta do próprio app (sem permissã
 /sdcard/Android/data/com.petrobot.hume/files/Pictures/protetor/<tema>/   protetor de tela
 ```
 
-Escolha em Ajustes → Tela inicial → **Tema das fotos**, **Imagens do protetor** e **Estilo do
-protetor**. A legenda do protetor vem do nome do arquivo: `Artista - Título (ano).jpg`.
+Escolha em Ajustes → Tela inicial → **Tema das fotos** e **Imagens do protetor**.
 
 Os pacotes prontos são baixados, cortados para 1920x1080 e enviados por um script (Python 3 com
-`requests` e `Pillow`). O fundo vem de fotos do Wikimedia Commons com pelo menos 2560x1440 e
-proporção entre 1,55 e 2,0; o protetor, de pinturas do Art Institute of Chicago (CC0):
+`requests` e `Pillow`). Fundo e protetor usam fotos do Wikimedia Commons com pelo menos 2560x1440
+e proporção entre 1,55 e 2,0 — os dois ocupam a tela inteira, então valem a mesma regra:
 
 ```bash
 python tools/baixar-pacotes.py pacotes --push --adb "$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe"

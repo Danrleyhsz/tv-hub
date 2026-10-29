@@ -1,8 +1,8 @@
 """Monta os pacotes de fundo e de protetor de tela do TV Hub com imagens de domínio público.
 
-Pinturas do protetor: Art Institute of Chicago (CC0). Fundo: fotos do Wikimedia Commons, só as
-que já vêm maiores que 1920x1080 — reduzir mantém nítido, ampliar borra. Cada imagem vira
-"Autor - Título.jpg", que é o que o protetor mostra como legenda.
+Fotos do Wikimedia Commons, só as que já vêm maiores que 1920x1080: reduzir mantém nítido,
+ampliar borra. Fundo e protetor usam a tela inteira, então valem a mesma regra e a mesma
+proporção; pintura em retrato ficou de fora porque cortá-la para 16:9 mostra só um pedaço dela.
 
     python tools/baixar-pacotes.py pacotes                # baixa em ./pacotes/{fundo,protetor}/<tema>/
     python tools/baixar-pacotes.py pacotes --push         # e envia para a TV
@@ -16,7 +16,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import unicodedata
 from pathlib import Path
 
 import requests
@@ -26,25 +25,24 @@ W, H = 1920, 1080
 UA = {"User-Agent": "tv-hub-pacotes/1.0", "AIC-User-Agent": "tv-hub-pacotes/1.0"}
 TV_DIR = "/sdcard/Android/data/com.petrobot.hume/files/Pictures"
 
-# (pasta, tema, [(artista como o AIC escreve, quantas)], só paisagem?)
-AIC_PACKS = [
-    ("protetor", "Impressionistas", [
-        ("Claude Monet", 3), ("Pierre-Auguste Renoir", 2), ("Vincent van Gogh", 2),
-        ("Gustave Caillebotte", 1), ("Georges Seurat", 1), ("Camille Pissarro", 1),
-        ("Mary Cassatt", 1), ("Berthe Morisot", 1)], False),
-    ("protetor", "Mestres e ukiyo-e", [
-        ("Rembrandt", 2), ("El Greco", 1), ("Joseph Mallord William Turner", 2), ("Francisco Goya", 1),
-        ("Katsushika Hokusai", 3), ("Utagawa Hiroshige", 3)], False),
-]
-
 # Fundo: fotos do Wikimedia Commons. Só entram originais maiores que a tela, para a imagem ser
 # reduzida e nunca ampliada — foi o que estragou os pacotes de pintura e da NASA que vieram antes.
-COMMONS_PACK = ("fundo", "Natureza", [
-    "Category:Featured pictures of landscapes",
-    "Category:Featured pictures of nature",
-    "Category:Quality images of landscapes",
-    "Category:Featured pictures of skies",
-], 14)
+COMMONS_PACKS = [
+    ("fundo", "Natureza", [
+        "Category:Featured pictures of landscapes",
+        "Category:Featured pictures of nature",
+        "Category:Quality images of landscapes",
+    ], 14),
+    # O protetor pega tela cheia, entao precisa da mesma regra de tamanho que o fundo. Categorias
+    # diferentes de proposito: nao adianta a tela de descanso repetir a foto que ja estava no fundo.
+    ("protetor", "Vistas", [
+        "Category:Featured pictures of coasts",
+        "Category:Featured pictures of cityscapes",
+        "Category:Featured pictures of lakes",
+        "Category:Featured pictures of waterfalls",
+        "Category:Featured pictures of astronomy",
+    ], 16),
+]
 MIN_W, MIN_H = 2560, 1440          # o dobro da tela de largura: sobra detalhe depois do corte
 AR_MIN, AR_MAX = 1.55, 2.00        # perto de 16:9; panorama de 5:1 vira uma tira sem assunto
 # Um unico tamanho de thumbnail serve para toda essa faixa: 2560 de largura da 1280 de altura
@@ -57,19 +55,6 @@ log = logging.getLogger("pacotes")
 def safe(s, n=70):
     s = re.sub(r'[\\/:*?"<>|\n\r\t]+', " ", s or "").strip()
     return re.sub(r"\s+", " ", s)[:n].rstrip(" .")
-
-
-def same_artist(wanted, found):
-    """Todos os nomes pedidos aparecem no artista do acervo: "Francisco Goya" casa com
-    "Francisco José de Goya y Lucientes", mas "Thomas Cole" não casa com "Timothy Cole"."""
-    words = lambda s: set(re.sub(r"[-,]", " ", unicodedata.normalize("NFKD", s or "")
-                                 .encode("ascii", "ignore").decode().lower()).split())
-    return words(wanted) <= words(found)
-
-
-assert same_artist("Francisco Goya", "Francisco José de Goya y Lucientes")
-assert same_artist("Jean-Baptiste-Camille Corot", "Jean Baptiste Camille Corot")
-assert not same_artist("Thomas Cole", "Timothy Cole")
 
 
 def fit(img, cover):
@@ -96,39 +81,6 @@ def save(raw, dest, cover):
     return True
 
 
-def aic(out, folder, theme, artists, landscape_only):
-    log.info("%s/%s", folder, theme)
-    for artist, want in artists:
-        r = requests.get("https://api.artic.edu/api/v1/artworks/search", headers=UA, timeout=30, params={
-            "q": artist, "limit": 60,
-            "query[bool][must][][term][is_public_domain]": "true",
-            "fields": "id,title,artist_title,date_display,image_id,thumbnail,artwork_type_title"})
-        r.raise_for_status()
-        got = 0
-        for a in r.json()["data"]:
-            t = a.get("thumbnail") or {}
-            w, h = t.get("width") or 0, t.get("height") or 0
-            if (not a.get("image_id") or not same_artist(artist, a.get("artist_title"))
-                    or a.get("artwork_type_title") not in ("Painting", "Print") or not w or not h
-                    or (landscape_only and w / h < 1.3)):
-                continue
-            date = (a.get("date_display") or "").split(",")[0]
-            name = f"{safe(a['artist_title'], 40)} - {safe(a['title'])} ({safe(date, 20)}).jpg"
-            dest = out / folder / theme / name
-            if not dest.exists():
-                img = requests.get(f"https://www.artic.edu/iiif/2/{a['image_id']}/full/1686,/0/default.jpg",
-                                   headers=UA, timeout=60)
-                if img.status_code != 200:
-                    log.warning("  pulei %s: HTTP %s", a["id"], img.status_code)
-                    continue
-                save(img.content, dest, cover=folder == "fundo")
-            got += 1
-            if got == want:
-                break
-        if got < want:
-            log.warning("  %s: só %d de %d", artist, got, want)
-
-
 def commons_api(**params):
     params.setdefault("format", "json")
     params.setdefault("formatversion", "2")
@@ -148,39 +100,50 @@ def autor(meta):
 def commons(out, folder, theme, cats, total):
     """Fotos do Commons, só as que já nascem maiores que a tela."""
     log.info("%s/%s", folder, theme)
-    vistos, got = set(), 0
-    for cat in cats:
-        cont = {}
-        while got < total:
-            d = commons_api(action="query", generator="categorymembers", gcmtitle=cat,
-                            gcmlimit="50", gcmtype="file", prop="imageinfo",
-                            iiprop="url|size|extmetadata", iiurlwidth=str(PEDIDO), **cont)
-            for pg in d.get("query", {}).get("pages", []):
-                if got >= total or pg["title"] in vistos:
-                    continue
-                vistos.add(pg["title"])
-                ii = (pg.get("imageinfo") or [{}])[0]
-                w, h = ii.get("width", 0), ii.get("height", 0)
-                if w < MIN_W or h < MIN_H:
-                    continue
-                ar = w / h
-                if not AR_MIN <= ar <= AR_MAX:
-                    continue
-                meta = ii.get("extmetadata", {})
-                nome = safe(pg["title"][5:].rsplit(".", 1)[0])
-                dest = out / folder / theme / ("%s - %s.jpg" % (autor(meta), nome))
-                if dest.exists():
-                    got += 1
-                    continue
-                try:
-                    raw = requests.get(ii["thumburl"], headers=UA, timeout=90).content
-                    if save(raw, dest, cover=True):
-                        got += 1
-                except Exception as e:  # thumbnail fora do ar ou formato que o Pillow nao le
-                    log.warning("  pulei %s: %s", nome[:40], e)
-            if got >= total or "continue" not in d:
-                break
-            cont = d["continue"]
+    # Conta o que ja esta na pasta: rodar de novo completa o que falta em vez de empilhar fotos.
+    pasta = out / folder / theme
+    got = len(list(pasta.glob("*.jpg"))) if pasta.is_dir() else 0
+    if got >= total:
+        log.info("  ja tem %d, nada a baixar", got)
+        return
+    vistos = set()
+    # Uma cota por categoria, senao a primeira com muita foto enche o pacote sozinha e o tema fica
+    # repetitivo. Quem nao preencher a sua cota sobra para a rodada seguinte, sem cota.
+    cota = max(1, -(-total // len(cats)))
+    for limite in (cota, total):   # primeira rodada com cota, segunda solta para completar
+        for cat in cats:
+            daqui = 0
+            cont = {}
+            while got < total and daqui < limite:
+                d = commons_api(action="query", generator="categorymembers", gcmtitle=cat,
+                                gcmlimit="50", gcmtype="file", prop="imageinfo",
+                                iiprop="url|size|extmetadata", iiurlwidth=str(PEDIDO), **cont)
+                for pg in d.get("query", {}).get("pages", []):
+                    if got >= total or daqui >= limite or pg["title"] in vistos:
+                        continue   # a cota vale foto a foto: uma pagina traz 50 de uma vez so
+                    vistos.add(pg["title"])
+                    ii = (pg.get("imageinfo") or [{}])[0]
+                    w, h = ii.get("width", 0), ii.get("height", 0)
+                    if w < MIN_W or h < MIN_H:
+                        continue
+                    ar = w / h
+                    if not AR_MIN <= ar <= AR_MAX:
+                        continue
+                    meta = ii.get("extmetadata", {})
+                    nome = safe(pg["title"][5:].rsplit(".", 1)[0])
+                    dest = out / folder / theme / ("%s - %s.jpg" % (autor(meta), nome))
+                    if dest.exists():
+                        continue   # ja contada la em cima
+                    try:
+                        raw = requests.get(ii["thumburl"], headers=UA, timeout=90).content
+                        if save(raw, dest, cover=True):   # tela cheia nos dois casos
+                            got += 1
+                            daqui += 1
+                    except Exception as e:  # thumbnail fora do ar ou formato que o Pillow nao le
+                        log.warning("  pulei %s: %s", nome[:40], e)
+                if got >= total or daqui >= limite or "continue" not in d:
+                    break
+                cont = d["continue"]
     if got < total:
         log.warning("  %s: so %d de %d", theme, got, total)
 
@@ -212,9 +175,8 @@ def main():
     logging.basicConfig(level=logging.DEBUG if a.verbose else logging.INFO, format="%(message)s")
     try:
         if not a.so_enviar:
-            for p in AIC_PACKS:
-                aic(a.out, *p)
-            commons(a.out, *COMMONS_PACK)
+            for pack in COMMONS_PACKS:
+                commons(a.out, *pack)
         if a.push or a.so_enviar:
             push(a.out, a.adb, a.tv)
     except (requests.RequestException, subprocess.CalledProcessError, OSError) as e:

@@ -25,7 +25,6 @@ final class Themes {
     static final String FUNDO = "fundo", PROTETOR = "protetor";
     /** saver_theme value meaning "the screensaver shows the background's pictures". */
     static final String SAME = "";
-    static final String FRAMED = "quadro", FULL = "tela";
 
     private Themes() {}
 
@@ -142,46 +141,4 @@ final class Themes {
         return images(new File(new File(root(c), PROTETOR), current(c, PROTETOR)));
     }
 
-    static boolean framed(Context c) {
-        return !FULL.equals(Profiles.homePrefs(c).getString("saver_style", FRAMED));
-    }
-
-    static void setFramed(Context c, boolean framed) {
-        Profiles.homePrefs(c).edit().putString("saver_style", framed ? FRAMED : FULL).apply();
-    }
-
-    /**
-     * The museum label, from the file name: "Claude Monet - Water Lilies (1906).jpg" gives
-     * {"Water Lilies (1906)", "Claude Monet"}. Null when the name has no " - " (e.g. "paisagem-1015.jpg").
-     */
-    static String[] caption(String fileName) {
-        int dot = fileName.lastIndexOf('.');
-        String n = dot > 0 ? fileName.substring(0, dot) : fileName;
-        int sep = n.indexOf(" - ");
-        if (sep <= 0 || sep + 3 >= n.length()) return null;
-        return new String[]{n.substring(sep + 3).trim(), n.substring(0, sep).trim()};
-    }
-
-    /** The picture in a cream passe-partout and a thin dark frame, hung on a dark wall, at screen size. */
-    static Bitmap frame(Bitmap art, int w, int h) {
-        Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
-        Canvas c = new Canvas(out);
-        c.drawColor(0xFF1B1916);
-        float s = Math.min(w * 0.68f / art.getWidth(), h * 0.70f / art.getHeight());
-        float aw = art.getWidth() * s, ah = art.getHeight() * s;
-        float l = (w - aw) / 2f, t = (h - ah) / 2f - h * 0.02f;  // a little above centre, like on a wall
-        float mat = h * 0.045f, rim = h * 0.011f;
-        RectF outer = new RectF(l - mat - rim, t - mat - rim, l + aw + mat + rim, t + ah + mat + rim);
-        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        p.setColor(0xFF2B241C);
-        p.setShadowLayer(h * 0.03f, 0, h * 0.012f, 0xB0000000);
-        c.drawRect(outer, p);
-        p.clearShadowLayer();
-        p.setColor(0xFFF1ECE2);
-        c.drawRect(l - mat, t - mat, l + aw + mat, t + ah + mat, p);
-        p.setColor(0x33000000);  // hairline where the mat meets the picture
-        c.drawRect(l - 2, t - 2, l + aw + 2, t + ah + 2, p);
-        c.drawBitmap(art, null, new RectF(l, t, l + aw, t + ah), new Paint(Paint.FILTER_BITMAP_FLAG));
-        return out;
-    }
 }

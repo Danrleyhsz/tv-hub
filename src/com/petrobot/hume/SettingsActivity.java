@@ -567,14 +567,6 @@ public class SettingsActivity extends Activity {
         });
         row("Imagens do protetor", () -> Themes.saverSameAsBackground(this) ? "As mesmas do fundo"
                 : Themes.current(this, Themes.PROTETOR), () -> chooseTheme(Themes.PROTETOR, "Imagens do protetor", "As mesmas do fundo"));
-        row("Estilo do protetor", () -> Themes.framed(this) ? "Quadro com moldura" : "Foto em tela cheia", () -> {
-            String[] names = {"Quadro com moldura", "Foto em tela cheia"};
-            dialog("Estilo do protetor").setSingleChoiceItems(names, Themes.framed(this) ? 0 : 1, (d, w) -> {
-                Themes.setFramed(this, w == 0);
-                refreshAll();
-                d.dismiss();
-            }).show();
-        });
         row("Protetor de tela", () -> dreamLabel(), this::openDreamSettings);
         row("Ligar o protetor agora", () -> "", () -> {
             Intent i = new Intent(Intent.ACTION_MAIN).setClassName("com.android.systemui", "com.android.systemui.Somnambulator")
