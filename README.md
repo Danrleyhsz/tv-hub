@@ -15,8 +15,8 @@ os apps. Sem recomendação, sem banner, sem patrocinado.
   acompanha a hora: as mais claras no meio do dia, as mais escuras à noite. Só entram fotos que já
   vêm maiores que 1920x1080, para a TV reduzir e não ampliar.
 - **Protetor de tela**: depois de 5 min parado, uma foto toma a tela inteira — sem relógio, sem
-  legenda, sem moldura, só a imagem, para parecer um quadro na parede. Troca a cada 3 min;
-  qualquer tecla volta.
+  legenda, sem moldura, só a imagem, para parecer um quadro na parede. Com o mesmo zoom e deslize
+  lentos do fundo, então ela nunca fica morta. Troca a cada 3 min; qualquer tecla volta.
 - **Central de controle**, busca (apps, ajustes, filmes e séries), entradas HDMI, perfis, timer de
   sono e protetor — tudo em português.
 

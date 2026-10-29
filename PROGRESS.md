@@ -80,6 +80,10 @@ Windows e para usar `jar` quando não existe `zip` (Git Bash não traz `zip`).
       Com isso saíram `Themes.frame()`, `Themes.caption()`, o relógio do protetor e a opção
       "Estilo do protetor".
 
+- [x] Movimento no protetor (2026-10-29): o mesmo zoom e deslize do fundo, agora num `driftOn()`
+      que os dois chamam. O deslize passou a sair da margem que o próprio zoom abre (45% dela), em
+      vez de um número solto — mexer no zoom não tem mais como descobrir a borda da tela.
+
 ## Imagens
 
 Veja "Temas do fundo e do protetor" no README. **Desinstalar ou limpar os dados apaga as pastas.**

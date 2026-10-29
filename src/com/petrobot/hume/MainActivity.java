@@ -382,6 +382,7 @@ public class MainActivity extends Activity {
         super.onPause();
         resumed = false;
         stopWallpaperDrift();   // nada do fundo aparece com outro app na frente
+        stopSaverDrift();
         handler.removeCallbacks(heroAdvance);
         handler.removeCallbacks(weatherTick);
         handler.removeCallbacks(idleRunnable);
@@ -1029,31 +1030,32 @@ public class MainActivity extends Activity {
         return b;
     }
 
-    ValueAnimator drift;
+    ValueAnimator drift, saverDrift;
 
     /**
-     * Keeps the wallpaper alive: a slow pan and zoom, the way a TV screensaver moves over a photo.
-     * The zoom never drops below DRIFT_ZOOM, and the pan stays inside the margin that zoom creates,
-     * so no edge of the screen is ever left uncovered. One cycle is built from whole multiples of
-     * the angle, so it loops without a jump. Both wallpaper layers move together, otherwise a
-     * photo would jolt sideways as the next one crossfades in.
+     * The slow pan and zoom that keeps a full-screen photo from sitting dead on the screen, used
+     * by the wallpaper and by the screensaver. The zoom never drops below DRIFT_ZOOM, and the pan
+     * stays inside the margin that zoom creates, so no edge is ever left uncovered. One cycle is
+     * built from whole multiples of the angle, so it loops without a jump. Views passed together
+     * move together: the wallpaper's two layers must, or a photo jolts sideways mid-crossfade.
      */
     static final float DRIFT_ZOOM = 1.08f, DRIFT_ZOOM_RANGE = 0.03f;
     static final long DRIFT_MS = 150_000L;
 
-    void startWallpaperDrift() {
-        // Já rodando: sair sem recomeçar, senão o fundo dá um salto de volta ao início do ciclo.
-        if (drift != null || wallView == null) return;
-        float panX = dp(18), panY = dp(10);   // bem abaixo da margem que o zoom 1.08 abre
-        drift = ValueAnimator.ofFloat(0f, (float) (2 * Math.PI));
-        drift.setDuration(DRIFT_MS);
-        drift.setRepeatCount(ValueAnimator.INFINITE);
-        drift.setInterpolator(new android.view.animation.LinearInterpolator());
-        drift.addUpdateListener(an -> {
-            float t = (float) (Float) an.getAnimatedValue();
+    ValueAnimator driftOn(View... views) {
+        // O deslize sai da margem que o proprio zoom abre, nunca de um numero solto: assim mexer
+        // no zoom nao tem como descobrir a borda da tela.
+        float margemX = screenW * (DRIFT_ZOOM - 1) / 2f, margemY = screenH * (DRIFT_ZOOM - 1) / 2f;
+        float panX = margemX * 0.45f, panY = margemY * 0.45f;
+        ValueAnimator an = ValueAnimator.ofFloat(0f, (float) (2 * Math.PI));
+        an.setDuration(DRIFT_MS);
+        an.setRepeatCount(ValueAnimator.INFINITE);
+        an.setInterpolator(new android.view.animation.LinearInterpolator());
+        an.addUpdateListener(a -> {
+            float t = (float) (Float) a.getAnimatedValue();
             float zoom = DRIFT_ZOOM + DRIFT_ZOOM_RANGE * (1 - (float) Math.cos(t)) / 2f;
             float x = panX * (float) Math.sin(t), y = panY * (float) Math.sin(2 * t);
-            for (View v : new View[]{wallView, wallFade}) {
+            for (View v : views) {
                 if (v == null) continue;
                 v.setScaleX(zoom);
                 v.setScaleY(zoom);
@@ -1061,7 +1063,25 @@ public class MainActivity extends Activity {
                 v.setTranslationY(y);
             }
         });
-        drift.start();
+        an.start();
+        return an;
+    }
+
+    void startWallpaperDrift() {
+        // Já rodando: sair sem recomeçar, senão o fundo dá um salto de volta ao início do ciclo.
+        if (drift != null || wallView == null) return;
+        drift = driftOn(wallView, wallFade);
+    }
+
+    void startSaverDrift() {
+        if (saverDrift != null || saverImage == null) return;
+        saverDrift = driftOn(saverImage);
+    }
+
+    void stopSaverDrift() {
+        if (saverDrift == null) return;
+        saverDrift.cancel();
+        saverDrift = null;
     }
 
     void stopWallpaperDrift() {
@@ -3958,6 +3978,7 @@ public class MainActivity extends Activity {
         saverImage.setImageDrawable(null);
         saverLayer.setVisibility(View.VISIBLE);
         saverLayer.animate().alpha(1f).setDuration(900).start();
+        startSaverDrift();
         nextSaverPicture();
     }
 
@@ -4018,6 +4039,7 @@ public class MainActivity extends Activity {
             switcher.animate().alpha(folderMode ? 0f : clockAlpha()).setDuration(350).start();
             chevron.animate().alpha(1f).setDuration(350).start();
             handler.removeCallbacks(saverTick);
+            stopSaverDrift();
             startWallpaperDrift();
             saverLayer.animate().alpha(0f).setDuration(350).withEndAction(() -> {
                 saverLayer.setVisibility(View.GONE);
