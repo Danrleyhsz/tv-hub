@@ -10,8 +10,8 @@ os apps. Sem recomendação, sem banner, sem patrocinado.
 
 - **Tela inicial** no gabarito: relógio grande em Inter Display Thin, data em português, clima em
   °C com a cidade em caixa alta, pílula de dica tirada da previsão e dock de vidro.
-- **Fundo de fotos com temas** (Paisagens, Paisagens pintadas, Terra vista do espaço…), trocando a
-  cada 15 minutos com fade de 1,2 s.
+- **Fundo de fotos com temas** (Natureza, Paisagens…), trocando a cada 15 minutos com fade de
+  1,2 s. Só entram fotos que já vêm maiores que 1920x1080, para a TV reduzir e não ampliar.
 - **Protetor de tela de pinturas**: depois de 5 min parado entra uma pintura numa moldura com
   passe-partout (ou foto em tela cheia), com legenda de obra e artista, relógio pequeno e data.
   Pacotes Impressionistas e Mestres e ukiyo-e. Troca a cada 3 min; qualquer tecla volta.
@@ -55,8 +55,9 @@ Cada tema é uma pasta de imagens dentro da pasta do próprio app (sem permissã
 Escolha em Ajustes → Tela inicial → **Tema das fotos**, **Imagens do protetor** e **Estilo do
 protetor**. A legenda do protetor vem do nome do arquivo: `Artista - Título (ano).jpg`.
 
-Os pacotes prontos (Art Institute of Chicago, CC0; NASA, domínio público) são baixados, cortados
-para 1920x1080 e enviados por um script (Python 3 com `requests` e `Pillow`):
+Os pacotes prontos são baixados, cortados para 1920x1080 e enviados por um script (Python 3 com
+`requests` e `Pillow`). O fundo vem de fotos do Wikimedia Commons com pelo menos 2560x1440 e
+proporção entre 1,55 e 2,0; o protetor, de pinturas do Art Institute of Chicago (CC0):
 
 ```bash
 python tools/baixar-pacotes.py pacotes --push --adb "$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe"
@@ -65,6 +66,19 @@ python tools/baixar-pacotes.py pacotes --push --adb "$LOCALAPPDATA/Android/Sdk/p
 Para um tema seu, crie a pasta e mande as fotos com `adb push`. Fotos soltas direto em
 `Pictures/` também valem como fundo. **Desinstalar ou limpar os dados apaga as pastas** — guarde
 as imagens no PC.
+
+## Ícone de um app na dock
+
+A dock usa o banner de TV do app. Quem não tem um fica com o ícone solto num cartão e destoa no
+meio de Netflix, Prime Video e Apple TV — o SmartTube, por exemplo, virava uma letra vermelha.
+`tools/icone.py` desenha um banner no mesmo gabarito e manda para a TV:
+
+```bash
+python tools/icone.py org.smarttube.stable SmartTube --cor E5342B --push     --adb "$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe"
+```
+
+O launcher lê de `files/Icones/<pacote>.png` e usa no lugar do banner do app, sem recompilar.
+Apagar o arquivo devolve o cartão de antes.
 
 ## Base e licença
 

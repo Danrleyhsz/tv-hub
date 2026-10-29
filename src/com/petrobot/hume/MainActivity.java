@@ -3007,7 +3007,9 @@ public class MainActivity extends Activity {
         inputs = Inputs.list(this);
         if (Inputs.showCard(this) && !inputs.isEmpty()) addInputsEntry();
         for (AppEntry e : all.values()) {
-            if (e.banner == null || TVOS_CARD_PKGS.contains(e.pkg)) {
+            Bitmap own = ownBanner(e.pkg);
+            if (own != null) e.banner = new BitmapDrawable(getResources(), own);
+            else if (e.banner == null || TVOS_CARD_PKGS.contains(e.pkg)) {
                 e.banner = new BitmapDrawable(getResources(), tvosCard(e));
             }
         }
@@ -3057,6 +3059,17 @@ public class MainActivity extends Activity {
         }
         s.color = 0xFF3A3A3C;
         all.put(s.key, s);
+    }
+
+    /**
+     * A banner we drew ourselves for an app whose own icon sits badly in the dock (SmartTube shows
+     * a bare letter), dropped in without rebuilding:  files/Icones/<pacote>.png  (tools/icone.py).
+     */
+    Bitmap ownBanner(String pkg) {
+        java.io.File dir = getExternalFilesDir(null);
+        if (dir == null || pkg == null) return null;
+        java.io.File f = new java.io.File(new java.io.File(dir, "Icones"), pkg + ".png");
+        return f.isFile() ? BitmapFactory.decodeFile(f.getPath()) : null;
     }
 
     int priority(AppEntry e) {
