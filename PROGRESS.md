@@ -50,23 +50,20 @@ Windows e para usar `jar` quando não existe `zip` (Git Bash não traz `zip`).
 - [x] Controle pelo celular (no lugar dos bilhetes do print 07): página em `/controle` servida
       pelo próprio launcher, com pareamento por PIN e QR em Ajustes → Controle pelo celular.
       Setas, OK, Voltar, Início, Recentes, volume e abrir apps.
+- [x] Temas (2026-10-29): pastas `Pictures/fundo/<tema>` e `Pictures/protetor/<tema>`, escolhidas
+      em Ajustes → Tela inicial. Protetor estilo "quadro" (moldura, passe-partout e parede escura)
+      ou foto em tela cheia, com legenda de obra e artista no canto inferior direito, trocando a
+      cada 3 min. Pacotes: fundo Paisagens (as 4 de amostra), Paisagens pintadas e Terra vista do
+      espaço; protetor Impressionistas e Mestres e ukiyo-e. Script em `tools/baixar-pacotes.py`.
 
-## Fotos do fundo
+## Imagens
 
-Ficam numa pasta do próprio app, sem precisar de permissão de armazenamento:
-
-```bash
-adb -s 192.168.1.147:5555 push foto.jpg /sdcard/Android/data/com.petrobot.hume/files/Pictures/
-```
-
-Estão lá 4 paisagens de amostra (Unsplash, uso livre). Troque por fotos suas quando quiser; com a
-pasta vazia o fundo cai no gradiente Aurora. **Desinstalar ou limpar os dados apaga a pasta.**
+Veja "Temas do fundo e do protetor" no README. **Desinstalar ou limpar os dados apaga as pastas.**
 
 ## Falta
 
 - [ ] Assistente de IA (prints 09–11) — adiado a pedido.
 - [ ] Medir o desempenho do foco na TV (seção 6 do spec).
-- [ ] Legenda da foto no canto inferior direito do protetor de tela (print 06).
 - [ ] Setas e OK em qualquer app: o Android só libera isso para um serviço de acessibilidade a
       partir do 13 (`GLOBAL_ACTION_DPAD_*`), e a TV está no 12. Hoje as setas só mexem na tela do
       próprio launcher; volume, Início, Voltar, Recentes e abrir app funcionam em qualquer lugar.
@@ -84,3 +81,9 @@ pasta vazia o fundo cai no gradiente Aurora. **Desinstalar ou limpar os dados ap
   corrigir em Ajustes → Clima → Localização.
 - O assistente de primeira execução foi concluído na TV em 2026-10-26, com o clima em Imperatriz,
   fundo Paisagens, prateleira de cima desligada e localização negada.
+- 2026-10-29: o APK passou a ser compilado em outro PC, com outra chave de debug, então o TV Hub
+  foi desinstalado e reinstalado (ajustes zerados, assistente refeito com as mesmas escolhas,
+  protetor em "Tela cheia do launcher"). Para atualizar sem perder dados, compile sempre com o
+  mesmo `debug.keystore` (está fora do git; há uma cópia em `%USERPROFILE%\.android\tvhub-debug.keystore`).
+- O protetor do sistema escolhido na TV é `com.gathin.tvhome/.ClockDream`, que foi desativado na
+  limpeza; por isso o protetor fica em "Tela cheia do launcher".

@@ -10,9 +10,11 @@ os apps. Sem recomendação, sem banner, sem patrocinado.
 
 - **Tela inicial** no gabarito: relógio grande em Inter Display Thin, data em português, clima em
   °C com a cidade em caixa alta, pílula de dica tirada da previsão e dock de vidro.
-- **Fundo de paisagem** que troca a cada 15 minutos com fade de 1,2 s, lido de uma pasta na TV.
-- **Protetor de tela**: depois de 20 s parado a paisagem toma a tela inteira, com um relógio
-  pequeno e a data. Qualquer tecla volta.
+- **Fundo de fotos com temas** (Paisagens, Paisagens pintadas, Terra vista do espaço…), trocando a
+  cada 15 minutos com fade de 1,2 s.
+- **Protetor de tela de pinturas**: depois de 5 min parado entra uma pintura numa moldura com
+  passe-partout (ou foto em tela cheia), com legenda de obra e artista, relógio pequeno e data.
+  Pacotes Impressionistas e Mestres e ukiyo-e. Troca a cada 3 min; qualquer tecla volta.
 - **Central de controle**, busca (apps, ajustes, filmes e séries), entradas HDMI, perfis, timer de
   sono e protetor — tudo em português.
 
@@ -41,16 +43,28 @@ O `restaurar.bat` funciona mesmo que o TV Hub nunca tenha virado padrão.
 > JDK 17, não o 21: o `d8` do build-tools 34 estoura NullPointerException com as classes anônimas
 > compiladas pelo javac 21.
 
-## Fotos do fundo
+## Temas do fundo e do protetor
 
-Ficam numa pasta do próprio app, sem precisar de permissão de armazenamento:
+Cada tema é uma pasta de imagens dentro da pasta do próprio app (sem permissão de armazenamento):
 
-```bash
-adb -s 192.168.1.147:5555 push foto.jpg /sdcard/Android/data/com.petrobot.hume/files/Pictures/
+```
+/sdcard/Android/data/com.petrobot.hume/files/Pictures/fundo/<tema>/      fundo da tela inicial
+/sdcard/Android/data/com.petrobot.hume/files/Pictures/protetor/<tema>/   protetor de tela
 ```
 
-Com a pasta vazia o fundo cai no gradiente Aurora. **Desinstalar ou limpar os dados apaga a
-pasta** — guarde as fotos no PC.
+Escolha em Ajustes → Tela inicial → **Tema das fotos**, **Imagens do protetor** e **Estilo do
+protetor**. A legenda do protetor vem do nome do arquivo: `Artista - Título (ano).jpg`.
+
+Os pacotes prontos (Art Institute of Chicago, CC0; NASA, domínio público) são baixados, cortados
+para 1920x1080 e enviados por um script (Python 3 com `requests` e `Pillow`):
+
+```bash
+python tools/baixar-pacotes.py pacotes --push --adb "$LOCALAPPDATA/Android/Sdk/platform-tools/adb.exe"
+```
+
+Para um tema seu, crie a pasta e mande as fotos com `adb push`. Fotos soltas direto em
+`Pictures/` também valem como fundo. **Desinstalar ou limpar os dados apaga as pastas** — guarde
+as imagens no PC.
 
 ## Base e licença
 

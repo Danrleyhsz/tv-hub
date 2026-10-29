@@ -1,0 +1,132 @@
+package com.petrobot.hume;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Paint;
+import android.graphics.RectF;
+import android.os.Environment;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Locale;
+
+/**
+ * Theme packs: one folder of pictures per theme, in the app's own Pictures folder (pushed from the
+ * PC with tools/baixar-pacotes.py, no storage permission involved):
+ *   Pictures/fundo/<tema>/     background of the Home Screen ("Fotos")
+ *   Pictures/protetor/<tema>/  screensaver
+ * Loose pictures straight in Pictures/ (the first installs) still work as the background.
+ */
+final class Themes {
+    static final String FUNDO = "fundo", PROTETOR = "protetor";
+    /** saver_theme value meaning "the screensaver shows the background's pictures". */
+    static final String SAME = "";
+    static final String FRAMED = "quadro", FULL = "tela";
+
+    private Themes() {}
+
+    static File root(Context c) {
+        return c.getExternalFilesDir(Environment.DIRECTORY_PICTURES);
+    }
+
+    static List<File> images(File dir) {
+        File[] fs = dir == null ? null : dir.listFiles();
+        List<File> out = new ArrayList<>();
+        if (fs == null) return out;
+        for (File f : fs) {
+            String n = f.getName().toLowerCase(Locale.US);
+            if (f.isFile() && (n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".png"))) out.add(f);
+        }
+        Collections.sort(out);
+        return out;
+    }
+
+    /** Theme folders of one kind that hold at least one picture, in alphabetical order. */
+    static List<String> list(Context c, String kind) {
+        File root = root(c);
+        File[] ds = root == null ? null : new File(root, kind).listFiles();
+        List<String> out = new ArrayList<>();
+        if (ds != null) for (File d : ds) if (d.isDirectory() && !images(d).isEmpty()) out.add(d.getName());
+        Collections.sort(out, String.CASE_INSENSITIVE_ORDER);
+        return out;
+    }
+
+    static String key(String kind) {
+        return FUNDO.equals(kind) ? "wall_theme" : "saver_theme";
+    }
+
+    /** The theme in use: the saved one while its folder is there, else the first; null when there is none. */
+    static String current(Context c, String kind) {
+        List<String> ts = list(c, kind);
+        if (ts.isEmpty()) return null;
+        String saved = Profiles.homePrefs(c).getString(key(kind), null);
+        return ts.contains(saved) ? saved : ts.get(0);
+    }
+
+    static void choose(Context c, String kind, String theme) {
+        Profiles.homePrefs(c).edit().putString(key(kind), theme).apply();
+    }
+
+    /** The screensaver follows the background when asked to, or when there is no screensaver pack. */
+    static boolean saverSameAsBackground(Context c) {
+        return SAME.equals(Profiles.homePrefs(c).getString(key(PROTETOR), null)) || current(c, PROTETOR) == null;
+    }
+
+    static List<File> background(Context c) {
+        File root = root(c);
+        String t = current(c, FUNDO);
+        return images(t == null ? root : new File(new File(root, FUNDO), t));
+    }
+
+    static List<File> saver(Context c) {
+        if (saverSameAsBackground(c)) return background(c);
+        return images(new File(new File(root(c), PROTETOR), current(c, PROTETOR)));
+    }
+
+    static boolean framed(Context c) {
+        return !FULL.equals(Profiles.homePrefs(c).getString("saver_style", FRAMED));
+    }
+
+    static void setFramed(Context c, boolean framed) {
+        Profiles.homePrefs(c).edit().putString("saver_style", framed ? FRAMED : FULL).apply();
+    }
+
+    /**
+     * The museum label, from the file name: "Claude Monet - Water Lilies (1906).jpg" gives
+     * {"Water Lilies (1906)", "Claude Monet"}. Null when the name has no " - " (e.g. "paisagem-1015.jpg").
+     */
+    static String[] caption(String fileName) {
+        int dot = fileName.lastIndexOf('.');
+        String n = dot > 0 ? fileName.substring(0, dot) : fileName;
+        int sep = n.indexOf(" - ");
+        if (sep <= 0 || sep + 3 >= n.length()) return null;
+        return new String[]{n.substring(sep + 3).trim(), n.substring(0, sep).trim()};
+    }
+
+    /** The picture in a cream passe-partout and a thin dark frame, hung on a dark wall, at screen size. */
+    static Bitmap frame(Bitmap art, int w, int h) {
+        Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
+        Canvas c = new Canvas(out);
+        c.drawColor(0xFF1B1916);
+        float s = Math.min(w * 0.68f / art.getWidth(), h * 0.70f / art.getHeight());
+        float aw = art.getWidth() * s, ah = art.getHeight() * s;
+        float l = (w - aw) / 2f, t = (h - ah) / 2f - h * 0.02f;  // a little above centre, like on a wall
+        float mat = h * 0.045f, rim = h * 0.011f;
+        RectF outer = new RectF(l - mat - rim, t - mat - rim, l + aw + mat + rim, t + ah + mat + rim);
+        Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        p.setColor(0xFF2B241C);
+        p.setShadowLayer(h * 0.03f, 0, h * 0.012f, 0xB0000000);
+        c.drawRect(outer, p);
+        p.clearShadowLayer();
+        p.setColor(0xFFF1ECE2);
+        c.drawRect(l - mat, t - mat, l + aw + mat, t + ah + mat, p);
+        p.setColor(0x33000000);  // hairline where the mat meets the picture
+        c.drawRect(l - 2, t - 2, l + aw + 2, t + ah + 2, p);
+        c.drawBitmap(art, null, new RectF(l, t, l + aw, t + ah), new Paint(Paint.FILTER_BITMAP_FLAG));
+        return out;
+    }
+}

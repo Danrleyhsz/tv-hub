@@ -533,6 +533,10 @@ public class SettingsActivity extends Activity {
                 d.dismiss();
             }).show();
         });
+        row("Tema das fotos", () -> {
+            String t = Themes.current(this, Themes.FUNDO);
+            return t == null ? "Fotos soltas" : t;
+        }, () -> chooseTheme(Themes.FUNDO, "Tema das fotos", null));
         row("Sons de navegação", () -> Clicks.enabled(this) ? "Ligado" : "Desligado",
                 () -> Clicks.setEnabled(this, !Clicks.enabled(this)));
         row("Protetor de tela depois de", () -> {
@@ -559,6 +563,16 @@ public class SettingsActivity extends Activity {
                 d.dismiss();
                 Toast.makeText(this, w == 0 ? "O protetor da TV entra quando a tela inicial fica parada"
                         : "A tela inicial continua e mostra a paisagem em tela cheia", Toast.LENGTH_LONG).show();
+            }).show();
+        });
+        row("Imagens do protetor", () -> Themes.saverSameAsBackground(this) ? "As mesmas do fundo"
+                : Themes.current(this, Themes.PROTETOR), () -> chooseTheme(Themes.PROTETOR, "Imagens do protetor", "As mesmas do fundo"));
+        row("Estilo do protetor", () -> Themes.framed(this) ? "Quadro com moldura" : "Foto em tela cheia", () -> {
+            String[] names = {"Quadro com moldura", "Foto em tela cheia"};
+            dialog("Estilo do protetor").setSingleChoiceItems(names, Themes.framed(this) ? 0 : 1, (d, w) -> {
+                Themes.setFramed(this, w == 0);
+                refreshAll();
+                d.dismiss();
             }).show();
         });
         row("Protetor de tela", () -> dreamLabel(), this::openDreamSettings);
@@ -715,6 +729,25 @@ public class SettingsActivity extends Activity {
     public boolean dispatchKeyEvent(android.view.KeyEvent ev) {
         MainActivity.navSound(this, ev);
         return super.dispatchKeyEvent(ev);
+    }
+
+    /** Picks a theme pack; `same` is an extra first option that stores Themes.SAME (null: none). */
+    void chooseTheme(String kind, String title, String same) {
+        List<String> ts = Themes.list(this, kind);
+        if (ts.isEmpty()) {
+            Toast.makeText(this, "Nenhum pacote de temas na TV. Envie pelo PC com tools/baixar-pacotes.py", Toast.LENGTH_LONG).show();
+            return;
+        }
+        List<String> names = new ArrayList<>(ts);
+        if (same != null) names.add(0, same);
+        int cur = same != null && Themes.saverSameAsBackground(this) ? 0 : names.indexOf(Themes.current(this, kind));
+        dialog(title).setSingleChoiceItems(names.toArray(new String[0]), cur, (d, w) -> {
+            Themes.choose(this, kind, same != null && w == 0 ? Themes.SAME : names.get(w));
+            // A background pack only shows with the photo background.
+            if (Themes.FUNDO.equals(kind)) Profiles.homePrefs(this).edit().putString("wallpaper", MainActivity.WALL_PHOTOS).apply();
+            refreshAll();
+            d.dismiss();
+        }).show();
     }
 
     AlertDialog.Builder dialog(String title) {

@@ -157,6 +157,7 @@ public class MainActivity extends Activity {
     boolean heroShown;          // carousel currently forms the background
     int heroVersion = -1;       // Suggestions.version() the items were loaded for
     String wallStyle;
+    String wallTheme;  // the background theme pack the photos come from, to notice when Settings changes it
     /** What Liquid Glass samples: a blurred copy of the wallpaper or of the carousel artwork. */
     Bitmap wallBlur, heroBlur, glassBg;
     final LiquidGlass.Backdrop glassSource = () -> glassBg;
@@ -337,8 +338,11 @@ public class MainActivity extends Activity {
         super.onResume();
         resumed = true;
         String ws = Profiles.homePrefs(this).getString("wallpaper", WALL_PHOTOS);
-        if (!ws.equals(wallStyle)) {
+        String wt = Themes.current(this, Themes.FUNDO);
+        if (!ws.equals(wallStyle) || !java.util.Objects.equals(wt, wallTheme)) {
             wallStyle = ws;
+            wallTheme = wt;
+            photoIndex = 0;
             setWallpaper(ws);
         }
         if (returningFromSettings && !folderMode && launchOverlay == null && moveIndex < 0) reload(currentKey());
@@ -409,6 +413,7 @@ public class MainActivity extends Activity {
         wallView = new ImageView(this);
         wallView.setScaleType(ImageView.ScaleType.CENTER_CROP);
         wallStyle = Profiles.homePrefs(this).getString("wallpaper", WALL_PHOTOS);
+        wallTheme = Themes.current(this, Themes.FUNDO);
         root.addView(wallView, match());
         // Sits on top of the wallpaper only while one photo crossfades into the next.
         wallFade = new ImageView(this);
@@ -895,30 +900,16 @@ public class MainActivity extends Activity {
     }
 
     static final String[] WALL_KEYS = {"fotos", "aurora", "midnight", "sunset", "ocean", "graphite"};
-    static final String[] WALL_NAMES = {"Paisagens", "Aurora", "Midnight", "Sunset", "Ocean", "Graphite"};
+    static final String[] WALL_NAMES = {"Fotos", "Aurora", "Midnight", "Sunset", "Ocean", "Graphite"};
     static final String WALL_PHOTOS = "fotos";
     /** How long one landscape stays up before the next one fades in. */
     static final long PHOTO_MS = 15 * 60_000L;
+    /** How long one picture stays up in the screensaver. */
+    static final long SAVER_MS = 3 * 60_000L;
 
-    /**
-     * Where the landscapes live. It belongs to the app, so no storage permission is involved:
-     *   adb push foto.jpg /sdcard/Android/data/com.petrobot.hume/files/Pictures/
-     */
-    java.io.File photoDir() {
-        return getExternalFilesDir(android.os.Environment.DIRECTORY_PICTURES);
-    }
-
+    /** The background pictures: the chosen theme pack (see Themes). */
     List<java.io.File> photos() {
-        java.io.File dir = photoDir();
-        java.io.File[] fs = dir == null ? null : dir.listFiles();
-        List<java.io.File> out = new ArrayList<>();
-        if (fs == null) return out;
-        for (java.io.File f : fs) {
-            String n = f.getName().toLowerCase(Locale.US);
-            if (f.isFile() && (n.endsWith(".jpg") || n.endsWith(".jpeg") || n.endsWith(".png"))) out.add(f);
-        }
-        java.util.Collections.sort(out);
-        return out;
+        return Themes.background(this);
     }
 
     /** Decodes a landscape at roughly screen size; null when it cannot be read. */
@@ -3901,16 +3892,16 @@ public class MainActivity extends Activity {
         scheduleAdvance();
     }
 
-    /** The landscape screensaver: everything but the photo and a small clock fades away. */
+    /** The picture screensaver: the chosen pack, framed or full screen, with a small clock and a label. */
     void enterPhotoIdle() {
-        // shortcut: only the Paisagens background has a screensaver, since the gradients have
-        // nothing to show full screen; give the gradients a slow drift if one is ever wanted.
-        if (!WALL_PHOTOS.equals(wallStyle) || photos().isEmpty()) {
+        saverFiles = Themes.saver(this);
+        if (saverFiles.isEmpty()) {
             resetIdle();
             return;
         }
         idle = true;
         idlePhoto = true;
+        if (saverLayer == null) buildSaver();  // before the clock, so the clock sits on top
         if (idleClock == null) buildIdleClock();
         idleScrollY = scroll.getTranslationY();
         scroll.animate().cancel();
@@ -3921,7 +3912,85 @@ public class MainActivity extends Activity {
         }
         idleClock.setVisibility(View.VISIBLE);
         idleClock.animate().alpha(1f).setDuration(900).start();
-        nextPhoto();  // a different landscape every time it starts
+        saverIndex = (int) (Math.random() * saverFiles.size());  // a different picture every time it starts
+        saverImage.setImageDrawable(null);
+        saverCaption.setAlpha(0f);
+        saverLayer.setVisibility(View.VISIBLE);
+        saverLayer.animate().alpha(1f).setDuration(900).start();
+        nextSaverPicture();
+    }
+
+    FrameLayout saverLayer;
+    ImageView saverImage;
+    LinearLayout saverCaption;
+    TextView saverTitle, saverArtist;
+    List<java.io.File> saverFiles = new ArrayList<>();
+    int saverIndex;
+    final Runnable saverTick = this::nextSaverPicture;
+
+    /** Black full-screen layer for the screensaver picture, with the label in the bottom-right corner. */
+    void buildSaver() {
+        FrameLayout layer = new FrameLayout(this);
+        layer.setBackgroundColor(Color.BLACK);
+        saverImage = new ImageView(this);
+        layer.addView(saverImage, match());
+        LinearLayout cap = new LinearLayout(this);
+        cap.setOrientation(LinearLayout.VERTICAL);
+        cap.setGravity(Gravity.END);
+        saverTitle = new TextView(this);
+        Ui.textSize(saverTitle, 12);
+        saverTitle.setTypeface(Ui.font(this, "medium"));
+        saverArtist = new TextView(this);
+        Ui.textSize(saverArtist, 10);
+        saverArtist.setTypeface(Ui.font(this, "regular"));
+        saverArtist.setAlpha(0.7f);
+        for (TextView t : new TextView[]{saverTitle, saverArtist}) {
+            t.setTextColor(Color.WHITE);
+            t.setShadowLayer(dp(8), 0, dp(1), 0x99000000);
+            t.setGravity(Gravity.END);
+            t.setMaxWidth(screenW / 3);
+            cap.addView(t);
+        }
+        FrameLayout.LayoutParams lp = new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.BOTTOM | Gravity.END);
+        lp.bottomMargin = dp(26);
+        lp.rightMargin = dockOuter;
+        layer.addView(cap, lp);
+        layer.setAlpha(0f);
+        layer.setVisibility(View.GONE);
+        root.addView(layer, match());
+        saverCaption = cap;
+        saverLayer = layer;
+    }
+
+    /** Fades in the next screensaver picture and queues the one after it. */
+    void nextSaverPicture() {
+        handler.removeCallbacks(saverTick);
+        if (!idlePhoto || saverFiles.isEmpty()) return;
+        java.io.File f = saverFiles.get(saverIndex++ % saverFiles.size());
+        boolean framed = Themes.framed(this);
+        io.execute(() -> {
+            Bitmap raw = loadPhoto(f);
+            Bitmap shown = raw == null ? null : framed ? Themes.frame(raw, screenW, screenH) : raw;
+            String[] cap = Themes.caption(f.getName());
+            handler.post(() -> {
+                if (!idlePhoto) return;
+                if (shown != null) {
+                    long out = saverImage.getDrawable() == null ? 0 : 700;
+                    saverCaption.animate().alpha(0f).setDuration(out).start();
+                    saverImage.animate().alpha(0f).setDuration(out).withEndAction(() -> {
+                        saverImage.setScaleType(framed ? ImageView.ScaleType.FIT_XY : ImageView.ScaleType.CENTER_CROP);
+                        saverImage.setImageBitmap(shown);
+                        saverTitle.setText(cap == null ? "" : cap[0]);
+                        saverArtist.setText(cap == null ? "" : cap[1]);
+                        saverImage.animate().alpha(1f).setDuration(1200).start();
+                        saverCaption.animate().alpha(cap == null ? 0f : 1f).setDuration(1200).start();
+                    }).start();
+                }
+                handler.postDelayed(saverTick, SAVER_MS);  // an unreadable file is skipped on the next tick
+            });
+        });
     }
 
     /** Small clock and date in the top-left corner, shown only by the landscape screensaver. */
@@ -3976,6 +4045,11 @@ public class MainActivity extends Activity {
             chevron.animate().alpha(1f).setDuration(350).start();
             idleClock.animate().alpha(0f).setDuration(250)
                     .withEndAction(() -> idleClock.setVisibility(View.GONE)).start();
+            handler.removeCallbacks(saverTick);
+            saverLayer.animate().alpha(0f).setDuration(350).withEndAction(() -> {
+                saverLayer.setVisibility(View.GONE);
+                saverImage.setImageDrawable(null);
+            }).start();
             resetIdle();
             return;
         }
@@ -4588,6 +4662,7 @@ public class MainActivity extends Activity {
         prefs = Profiles.homePrefs(this);
         refreshAvatar();
         wallStyle = prefs.getString("wallpaper", WALL_PHOTOS);
+        wallTheme = Themes.current(this, Themes.FUNDO);
         setWallpaper(wallStyle);
         folderMode = false;
         moveIndex = -1;
