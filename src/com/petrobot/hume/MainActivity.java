@@ -337,6 +337,7 @@ public class MainActivity extends Activity {
     protected void onResume() {
         super.onResume();
         resumed = true;
+        startWallpaperDrift();
         String ws = Profiles.homePrefs(this).getString("wallpaper", WALL_PHOTOS);
         String wt = Themes.current(this, Themes.FUNDO);
         if (!ws.equals(wallStyle) || !java.util.Objects.equals(wt, wallTheme)) {
@@ -380,6 +381,7 @@ public class MainActivity extends Activity {
     protected void onPause() {
         super.onPause();
         resumed = false;
+        stopWallpaperDrift();   // nada do fundo aparece com outro app na frente
         handler.removeCallbacks(heroAdvance);
         handler.removeCallbacks(weatherTick);
         handler.removeCallbacks(idleRunnable);
@@ -890,6 +892,7 @@ public class MainActivity extends Activity {
         invalidateGlass();
         handler.removeCallbacks(photoTick);
         if (WALL_PHOTOS.equals(style)) handler.postDelayed(photoTick, PHOTO_MS);
+        startWallpaperDrift();
     }
 
     void invalidateGlass() {
@@ -907,9 +910,10 @@ public class MainActivity extends Activity {
     /** How long one picture stays up in the screensaver. */
     static final long SAVER_MS = 3 * 60_000L;
 
-    /** The background pictures: the chosen theme pack (see Themes). */
+    /** The background pictures: the chosen theme pack, narrowed to the ones that suit the hour. */
     List<java.io.File> photos() {
-        return Themes.background(this);
+        return Themes.forHour(Themes.background(this),
+                java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY));
     }
 
     /** Decodes a landscape at roughly screen size; null when it cannot be read. */
@@ -1025,17 +1029,45 @@ public class MainActivity extends Activity {
         return b;
     }
 
+    ValueAnimator drift;
+
+    /**
+     * Keeps the wallpaper alive: a slow pan and zoom, the way a TV screensaver moves over a photo.
+     * The zoom never drops below DRIFT_ZOOM, and the pan stays inside the margin that zoom creates,
+     * so no edge of the screen is ever left uncovered. One cycle is built from whole multiples of
+     * the angle, so it loops without a jump. Both wallpaper layers move together, otherwise a
+     * photo would jolt sideways as the next one crossfades in.
+     */
+    static final float DRIFT_ZOOM = 1.08f, DRIFT_ZOOM_RANGE = 0.03f;
+    static final long DRIFT_MS = 150_000L;
+
     void startWallpaperDrift() {
-        ObjectAnimator dx = ObjectAnimator.ofFloat(wallView, View.TRANSLATION_X, -dp(60), dp(60));
-        dx.setDuration(38000);
-        ObjectAnimator dy = ObjectAnimator.ofFloat(wallView, View.TRANSLATION_Y, dp(30), -dp(30));
-        dy.setDuration(29000);
-        for (ObjectAnimator an : new ObjectAnimator[]{dx, dy}) {
-            an.setRepeatCount(ValueAnimator.INFINITE);
-            an.setRepeatMode(ValueAnimator.REVERSE);
-            an.setInterpolator(new PathInterpolator(0.45f, 0f, 0.55f, 1f));
-            an.start();
-        }
+        // Já rodando: sair sem recomeçar, senão o fundo dá um salto de volta ao início do ciclo.
+        if (drift != null || wallView == null) return;
+        float panX = dp(18), panY = dp(10);   // bem abaixo da margem que o zoom 1.08 abre
+        drift = ValueAnimator.ofFloat(0f, (float) (2 * Math.PI));
+        drift.setDuration(DRIFT_MS);
+        drift.setRepeatCount(ValueAnimator.INFINITE);
+        drift.setInterpolator(new android.view.animation.LinearInterpolator());
+        drift.addUpdateListener(an -> {
+            float t = (float) (Float) an.getAnimatedValue();
+            float zoom = DRIFT_ZOOM + DRIFT_ZOOM_RANGE * (1 - (float) Math.cos(t)) / 2f;
+            float x = panX * (float) Math.sin(t), y = panY * (float) Math.sin(2 * t);
+            for (View v : new View[]{wallView, wallFade}) {
+                if (v == null) continue;
+                v.setScaleX(zoom);
+                v.setScaleY(zoom);
+                v.setTranslationX(x);
+                v.setTranslationY(y);
+            }
+        });
+        drift.start();
+    }
+
+    void stopWallpaperDrift() {
+        if (drift == null) return;
+        drift.cancel();
+        drift = null;
     }
 
     /** Round profile avatar: indigo-to-pink gradient with a person glyph. */
@@ -3925,6 +3957,7 @@ public class MainActivity extends Activity {
         }
         idleClock.setVisibility(View.VISIBLE);
         idleClock.animate().alpha(1f).setDuration(900).start();
+        stopWallpaperDrift();
         saverIndex = (int) (Math.random() * saverFiles.size());  // a different picture every time it starts
         saverImage.setImageDrawable(null);
         saverCaption.setAlpha(0f);
@@ -4059,6 +4092,7 @@ public class MainActivity extends Activity {
             idleClock.animate().alpha(0f).setDuration(250)
                     .withEndAction(() -> idleClock.setVisibility(View.GONE)).start();
             handler.removeCallbacks(saverTick);
+            startWallpaperDrift();
             saverLayer.animate().alpha(0f).setDuration(350).withEndAction(() -> {
                 saverLayer.setVisibility(View.GONE);
                 saverImage.setImageDrawable(null);

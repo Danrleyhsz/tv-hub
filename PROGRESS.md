@@ -61,6 +61,17 @@ Windows e para usar `jar` quando não existe `zip` (Git Bash não traz `zip`).
       "Natureza", do Wikimedia Commons, só com originais de 2560x1440 para cima; `save()` agora
       recusa qualquer imagem de fundo menor que a tela, para o erro não voltar.
 
+- [x] Fundo vivo (2026-10-29): zoom e deslize lentos no fundo, um ciclo de 2,5 min montado com
+      múltiplos inteiros do ângulo, então ele fecha sem salto. O zoom mínimo de 1,08 abre a margem
+      que o deslize usa, por isso nenhuma borda fica descoberta; os dois ImageViews do fundo se
+      movem juntos, senão a foto pularia durante o crossfade. Para quando outro app está na frente
+      ou o protetor cobre a tela. Reaproveita o `startWallpaperDrift()` que veio da base e nunca
+      tinha sido chamado.
+- [x] Fundo por hora (2026-10-29): `Themes.forHour()` separa as fotos por brilho médio e escolhe a
+      faixa conforme o horário — claras das 10h às 16h, escuras das 19h às 6h, as do meio no resto.
+      Tema com menos de 6 fotos usa todas. O brilho é um palpite grosseiro, lido de uma miniatura
+      e guardado por arquivo.
+
 ## Imagens
 
 Veja "Temas do fundo e do protetor" no README. **Desinstalar ou limpar os dados apaga as pastas.**

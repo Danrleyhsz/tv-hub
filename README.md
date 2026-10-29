@@ -11,7 +11,9 @@ os apps. Sem recomendação, sem banner, sem patrocinado.
 - **Tela inicial** no gabarito: relógio grande em Inter Display Thin, data em português, clima em
   °C com a cidade em caixa alta, pílula de dica tirada da previsão e dock de vidro.
 - **Fundo de fotos com temas** (Natureza, Paisagens…), trocando a cada 15 minutos com fade de
-  1,2 s. Só entram fotos que já vêm maiores que 1920x1080, para a TV reduzir e não ampliar.
+  1,2 s, com um movimento lento de zoom e deslize que nunca deixa a tela parada. A foto da vez
+  acompanha a hora: as mais claras no meio do dia, as mais escuras à noite. Só entram fotos que já
+  vêm maiores que 1920x1080, para a TV reduzir e não ampliar.
 - **Protetor de tela de pinturas**: depois de 5 min parado entra uma pintura numa moldura com
   passe-partout (ou foto em tela cheia), com legenda de obra e artista, relógio pequeno e data.
   Pacotes Impressionistas e Mestres e ukiyo-e. Troca a cada 3 min; qualquer tecla volta.
