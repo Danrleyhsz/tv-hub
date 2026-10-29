@@ -53,8 +53,13 @@ Windows e para usar `jar` quando não existe `zip` (Git Bash não traz `zip`).
 - [x] Temas (2026-10-29): pastas `Pictures/fundo/<tema>` e `Pictures/protetor/<tema>`, escolhidas
       em Ajustes → Tela inicial. Protetor estilo "quadro" (moldura, passe-partout e parede escura)
       ou foto em tela cheia, com legenda de obra e artista no canto inferior direito, trocando a
-      cada 3 min. Pacotes: fundo Paisagens (as 4 de amostra), Paisagens pintadas e Terra vista do
-      espaço; protetor Impressionistas e Mestres e ukiyo-e. Script em `tools/baixar-pacotes.py`.
+      cada 3 min. Pacotes: fundo Paisagens (as 4 de amostra) e Natureza; protetor Impressionistas
+      e Mestres e ukiyo-e. Script em `tools/baixar-pacotes.py`.
+- [x] Fundo refeito (2026-10-29): os pacotes "Paisagens pintadas" e "Terra vista do espaço" saíram.
+      Vinham de originais menores que a tela (o AIC serve 1686 px de largura, e boa parte das fotos
+      da NASA é menor ainda), então o corte para 1920x1080 ampliava e borrava. No lugar entrou
+      "Natureza", do Wikimedia Commons, só com originais de 2560x1440 para cima; `save()` agora
+      recusa qualquer imagem de fundo menor que a tela, para o erro não voltar.
 
 ## Imagens
 

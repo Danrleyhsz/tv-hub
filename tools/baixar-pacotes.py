@@ -1,7 +1,8 @@
 """Monta os pacotes de fundo e de protetor de tela do TV Hub com imagens de domínio público.
 
-Pinturas: Art Institute of Chicago (CC0). Espaço: NASA Image Library (domínio público).
-Cada imagem vira "Artista - Título (data).jpg", que é o que o protetor mostra como legenda.
+Pinturas do protetor: Art Institute of Chicago (CC0). Fundo: fotos do Wikimedia Commons, só as
+que já vêm maiores que 1920x1080 — reduzir mantém nítido, ampliar borra. Cada imagem vira
+"Autor - Título.jpg", que é o que o protetor mostra como legenda.
 
     python tools/baixar-pacotes.py pacotes                # baixa em ./pacotes/{fundo,protetor}/<tema>/
     python tools/baixar-pacotes.py pacotes --push         # e envia para a TV
@@ -34,15 +35,21 @@ AIC_PACKS = [
     ("protetor", "Mestres e ukiyo-e", [
         ("Rembrandt", 2), ("El Greco", 1), ("Joseph Mallord William Turner", 2), ("Francisco Goya", 1),
         ("Katsushika Hokusai", 3), ("Utagawa Hiroshige", 3)], False),
-    ("fundo", "Paisagens pintadas", [
-        ("George Inness", 2), ("Thomas Cole", 2), ("Jean-Baptiste-Camille Corot", 2),
-        ("Claude Monet", 2), ("Jasper Francis Cropsey", 1), ("Albert Bierstadt", 1),
-        ("Alfred Sisley", 1), ("Winslow Homer", 1)], True),
 ]
-NASA_PACK = ("fundo", "Terra vista do espaço", [
-    "Earth at night from International Space Station", "aurora from International Space Station",
-    "sunrise over Earth from International Space Station", "Blue Marble Earth",
-    "Earth limb from International Space Station"], 12)
+
+# Fundo: fotos do Wikimedia Commons. Só entram originais maiores que a tela, para a imagem ser
+# reduzida e nunca ampliada — foi o que estragou os pacotes de pintura e da NASA que vieram antes.
+COMMONS_PACK = ("fundo", "Natureza", [
+    "Category:Featured pictures of landscapes",
+    "Category:Featured pictures of nature",
+    "Category:Quality images of landscapes",
+    "Category:Featured pictures of skies",
+], 14)
+MIN_W, MIN_H = 2560, 1440          # o dobro da tela de largura: sobra detalhe depois do corte
+AR_MIN, AR_MAX = 1.55, 2.00        # perto de 16:9; panorama de 5:1 vira uma tira sem assunto
+# Um unico tamanho de thumbnail serve para toda essa faixa: 2560 de largura da 1280 de altura
+# mesmo no mais largo (2.00), e 2560 ja passa dos 1920 da tela. Entao nada precisa ser ampliado.
+PEDIDO = 2560
 
 log = logging.getLogger("pacotes")
 
@@ -78,10 +85,15 @@ def fit(img, cover):
 
 
 def save(raw, dest, cover):
-    img = fit(Image.open(io.BytesIO(raw)), cover)
+    img = Image.open(io.BytesIO(raw))
+    if cover and (img.width < W or img.height < H):
+        log.warning("  pulei %s: %dx%d menor que a tela", dest.name, img.width, img.height)
+        return False
+    img = fit(img, cover)
     dest.parent.mkdir(parents=True, exist_ok=True)
     img.save(dest, "JPEG", quality=85, optimize=True, progressive=True)
     log.info("  %s  (%dx%d, %d KB)", dest.name, img.width, img.height, dest.stat().st_size // 1024)
+    return True
 
 
 def aic(out, folder, theme, artists, landscape_only):
@@ -117,34 +129,60 @@ def aic(out, folder, theme, artists, landscape_only):
             log.warning("  %s: só %d de %d", artist, got, want)
 
 
-def nasa(out, folder, theme, queries, total):
+def commons_api(**params):
+    params.setdefault("format", "json")
+    params.setdefault("formatversion", "2")
+    r = requests.get("https://commons.wikimedia.org/w/api.php", params=params, headers=UA, timeout=45)
+    r.raise_for_status()
+    return r.json()
+
+
+def autor(meta):
+    """O campo Artist do Commons vem com HTML; aqui vira um nome simples."""
+    bruto = (meta.get("Artist") or {}).get("value", "")
+    nome = re.sub(r"<[^>]+>", " ", bruto)
+    nome = re.sub(r"&[a-z]+;", " ", nome)
+    return safe(nome, 40) or "Commons"
+
+
+def commons(out, folder, theme, cats, total):
+    """Fotos do Commons, só as que já nascem maiores que a tela."""
     log.info("%s/%s", folder, theme)
-    seen, got = set(), 0
-    for q in queries:
-        r = requests.get("https://images-api.nasa.gov/search", timeout=30,
-                         params={"q": q, "media_type": "image", "page_size": 30})
-        r.raise_for_status()
-        for it in r.json()["collection"]["items"]:
-            d = it["data"][0]
-            if d["nasa_id"] in seen or got >= total:
-                continue
-            seen.add(d["nasa_id"])
-            assets = requests.get(it["href"], timeout=30).json()
-            url = next((u for u in assets if u.endswith("~large.jpg")), None) or \
-                next((u for u in assets if u.endswith("~orig.jpg")), None)
-            if not url:
-                continue
-            raw = requests.get(url.replace("http://", "https://"), timeout=60).content
-            with Image.open(io.BytesIO(raw)) as im:
-                if im.width / im.height < 1.3 or im.width < 1280:
+    vistos, got = set(), 0
+    for cat in cats:
+        cont = {}
+        while got < total:
+            d = commons_api(action="query", generator="categorymembers", gcmtitle=cat,
+                            gcmlimit="50", gcmtype="file", prop="imageinfo",
+                            iiprop="url|size|extmetadata", iiurlwidth=str(PEDIDO), **cont)
+            for pg in d.get("query", {}).get("pages", []):
+                if got >= total or pg["title"] in vistos:
                     continue
-            dest = out / folder / theme / f"NASA - {safe(d['title'])} ({d.get('date_created', '')[:4]}).jpg"
-            if dest.exists():  # títulos genéricos se repetem ("Earth Observation")
-                dest = dest.with_name(f"{dest.stem} {d['nasa_id']}.jpg")
-            save(raw, dest, cover=True)
-            got += 1
-        if got >= total:
-            break
+                vistos.add(pg["title"])
+                ii = (pg.get("imageinfo") or [{}])[0]
+                w, h = ii.get("width", 0), ii.get("height", 0)
+                if w < MIN_W or h < MIN_H:
+                    continue
+                ar = w / h
+                if not AR_MIN <= ar <= AR_MAX:
+                    continue
+                meta = ii.get("extmetadata", {})
+                nome = safe(pg["title"][5:].rsplit(".", 1)[0])
+                dest = out / folder / theme / ("%s - %s.jpg" % (autor(meta), nome))
+                if dest.exists():
+                    got += 1
+                    continue
+                try:
+                    raw = requests.get(ii["thumburl"], headers=UA, timeout=90).content
+                    if save(raw, dest, cover=True):
+                        got += 1
+                except Exception as e:  # thumbnail fora do ar ou formato que o Pillow nao le
+                    log.warning("  pulei %s: %s", nome[:40], e)
+            if got >= total or "continue" not in d:
+                break
+            cont = d["continue"]
+    if got < total:
+        log.warning("  %s: so %d de %d", theme, got, total)
 
 
 def push(out, adb, tv):
@@ -176,7 +214,7 @@ def main():
         if not a.so_enviar:
             for p in AIC_PACKS:
                 aic(a.out, *p)
-            nasa(a.out, *NASA_PACK)
+            commons(a.out, *COMMONS_PACK)
         if a.push or a.so_enviar:
             push(a.out, a.adb, a.tv)
     except (requests.RequestException, subprocess.CalledProcessError, OSError) as e:
