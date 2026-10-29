@@ -6,3 +6,4 @@ keystore-password.txt
 launchers-desativados.txt
 .DS_Store
 pacotes/
+__pycache__/
