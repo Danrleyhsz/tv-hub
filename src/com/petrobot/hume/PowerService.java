@@ -1,6 +1,9 @@
 package com.petrobot.hume;
 
 import android.accessibilityservice.AccessibilityService;
+import android.accessibilityservice.AccessibilityServiceInfo;
+import android.util.Log;
+import android.view.KeyEvent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
@@ -48,6 +51,11 @@ public class PowerService extends AccessibilityService {
             }
         };
         registerReceiver(screenOn, new IntentFilter(Intent.ACTION_SCREEN_ON));
+        AccessibilityServiceInfo info = getServiceInfo();
+        if (info != null) {
+            info.flags |= AccessibilityServiceInfo.FLAG_REQUEST_FILTER_KEY_EVENTS;
+            setServiceInfo(info);
+        }
         // Bound early after boot, and allowed to open screens: a reliable boot trigger too.
         if (com.petrobot.hume.present.Presenter.justBooted()) Startup.onBoot(this);
         // The stock launcher may already be on screen (just booted, or the switch was turned on
@@ -82,6 +90,26 @@ public class PowerService extends AccessibilityService {
     }
 
     private long lastRedirect;
+
+    @Override
+    protected boolean onKeyEvent(KeyEvent event) {
+        int code = event.getKeyCode();
+        if (code == KeyEvent.KEYCODE_NOTIFICATION || code == KeyEvent.KEYCODE_SETTINGS || code == 83 || code == 176) {
+            if (event.getAction() == KeyEvent.ACTION_UP) {
+                Log.i("PowerService", "Settings button captured: keycode " + code);
+                try {
+                    startActivity(new Intent(Settings.ACTION_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                } catch (Exception e) {
+                    try {
+                        startActivity(new Intent().setClassName("com.android.tv.settings", "com.android.tv.settings.MainSettings")
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    } catch (Exception ignored) {}
+                }
+            }
+            return true;
+        }
+        return super.onKeyEvent(event);
+    }
 
     @Override
     public void onInterrupt() {
