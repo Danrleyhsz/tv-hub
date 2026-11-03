@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="power_service_desc">Deixa o launcher suspender a TV (Desligar, timer de sono) e fechar apps quando você aperta Limpar na central de controle. Só é usado quando você pede.</string>
+    <string name="power_service_desc">Deixa o launcher suspender a TV (Desligar, timer de sono), fechar apps quando você aperta Limpar na central de controle, abrir o TV Hub quando o botão Início cai na tela inicial de fábrica, e abrir o app ou a entrada que você escolher quando a TV liga. Para o botão Início, ele só repara qual tela de app abriu. Fora o Forçar parada do Limpar, não lê o que está na tela, e nunca vê o que você digita.</string>
 </resources>

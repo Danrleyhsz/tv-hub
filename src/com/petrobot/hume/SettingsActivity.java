@@ -36,6 +36,7 @@ public class SettingsActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         Clicks.init(this);
+        Motion.init(this);
         String token = getIntent().getStringExtra("tmdb_token");
         if (token != null && !token.trim().isEmpty()) {
             Suggestions.prefs(this).edit().putString(Suggestions.K_TOKEN, token.trim()).apply();
@@ -81,6 +82,7 @@ public class SettingsActivity extends Activity {
         scroller.addView(list);
         split.addView(scroller, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.MATCH_PARENT, 1.25f));
         setContentView(root);
+        Clicks.quiet(root);
         show(ROOT);
     }
 
@@ -89,6 +91,7 @@ public class SettingsActivity extends Activity {
         lastPage = page;
         page = p;
         list.removeAllViews();
+        rowsByLabel.clear();
         refreshers.clear();
         navRows.clear();
         buildLeft(p);
@@ -99,7 +102,7 @@ public class SettingsActivity extends Activity {
             case PRESENT: pagePresentation(); break;
             case INPUTS: pageInputs(); break;
             case WEATHER: pageWeather(); break;
-            case WATCHING: pageWatching(); break;
+            case WATCHING: pageShelf(); break;  // older deep links: Continue Watching now lives in Top Shelf
             case HOME: pageHome(); break;
             case PERMS: pagePermissions(); break;
             case ABOUT: pageAbout(); break;
@@ -118,8 +121,12 @@ public class SettingsActivity extends Activity {
         }
         if (focus != null) focus.requestFocus();
         list.setAlpha(0f);
-        list.setTranslationX(Ui.px(this, p.equals(ROOT) ? -16 : 16));
-        list.animate().alpha(1f).translationX(0).setDuration(220).start();
+        list.setTranslationX(Motion.dist(Ui.px(this, p.equals(ROOT) ? -16 : 16)));
+        list.animate().alpha(1f).translationX(0).setDuration(Motion.d(220)).start();
+        // Rows settle in one after another (tvOS Settings).
+        List<android.view.View> rows = new ArrayList<>();
+        for (int i = 0; i < list.getChildCount(); i++) rows.add(list.getChildAt(i));
+        Motion.cascade(rows, Ui.px(this, 8));
     }
 
     @Override
@@ -136,7 +143,8 @@ public class SettingsActivity extends Activity {
 
     @Override
     public void onRequestPermissionsResult(int code, String[] perms, int[] results) {
-        refreshAll();
+        if (SHELF.equals(page)) show(SHELF);  // allowed: the sources' options appear
+        else refreshAll();
     }
 
     /** Left side: the page's icon (Petrobot on the main list), its title, and the brand line. */
@@ -229,19 +237,18 @@ public class SettingsActivity extends Activity {
     void pageRoot() {
         nav(PROFILES, () -> Profiles.current(this).name);
         nav(SHELF, () -> {
-            switch (Suggestions.shelf(this)) {
-                case Suggestions.SHELF_RECS: return "Recomendações";
-                case Suggestions.SHELF_NEWS: return "Notícias";
-                case Suggestions.SHELF_NONE: return "Desligado";
-                default: return "Recomendações e notícias";
-            }
+            // O que o carrossel mostra, na ordem: continuar assistindo, apps, recomendações, notícias.
+            List<String> on = new ArrayList<>();
+            if (cwOn()) on.add("Continuar assistindo");
+            if (appRowsOn()) on.add("Apps");
+            if (Suggestions.showRecs(this)) on.add("Recomendações");
+            if (Suggestions.showNews(this)) on.add("Notícias");
+            return on.isEmpty() ? "Desligado" : on.size() > 2 ? on.size() + " fontes" : String.join(" e ", on);
         });
         nav(REMOTE, () -> Remote.enabled(this) ? "Ligado" : "Desligado");
         nav(PRESENT, () -> com.petrobot.hume.present.Presenter.enabled(this) ? "Ligado" : "Desligado");
         if (!Inputs.list(this).isEmpty()) nav(INPUTS, () -> Inputs.showCard(this) ? "Ligado" : "Desligado");
         nav(WEATHER, () -> !Weather.enabled(this) ? "Desligado" : Weather.place(this).isEmpty() ? "Ligado" : Weather.place(this));
-        nav(WATCHING, () -> !Profiles.homePrefs(this).getBoolean("cw_enabled", false) ? "Desligado" : MediaWatchService.granted(this) ? "Ligado"
-                : Perms.listenerSupported(this) ? "Precisa de permissão" : "Não existe nesta TV");
         nav(HOME, () -> {
             String k = Profiles.homePrefs(this).getString("wallpaper", MainActivity.WALL_PHOTOS);
             int i = java.util.Arrays.asList(MainActivity.WALL_KEYS).indexOf(k);
@@ -249,6 +256,7 @@ public class SettingsActivity extends Activity {
         });
         nav(PERMS, () -> {
             int missing = (Perms.hasListener(this) || !Perms.listenerSupported(this) ? 0 : 1) + (Perms.hasLocation(this) ? 0 : 1)
+                    + (Perms.hasTvListings(this) || !WatchNext.supported() ? 0 : 1)
                     + (Perms.hasAdmin(this) || !Perms.adminSupported(this) ? 0 : 1) + (Perms.isDefaultHome(this) ? 0 : 1);
             return missing == 0 ? "Tudo permitido" : missing + " a permitir";
         });
@@ -266,24 +274,67 @@ public class SettingsActivity extends Activity {
                 () -> Profiles.setAskOnWake(this, !Profiles.askOnWake(this)));
     }
 
+    /** Continue Watching shows for this profile (switched on and allowed). */
+    boolean cwOn() {
+        return Profiles.homePrefs(this).getBoolean("cw_enabled", true) && WatchNext.granted(this);
+    }
+
+    boolean appRowsOn() {
+        return Profiles.homePrefs(this).getBoolean("app_rows", true) && WatchNext.granted(this);
+    }
+
+    /** On / Off for a source that reads the TV's lists, or what it still needs. */
+    String tvSourceState(String key) {
+        if (!WatchNext.supported()) return "N\u00e3o existe nesta TV";
+        if (!WatchNext.granted(this)) return "Permitir\u2026";
+        return Profiles.homePrefs(this).getBoolean(key, true) ? "Ligado" : "Desligado";
+    }
+
+    /** Toggles a TV-list source; asks for the TV-listings permission first when it's missing. */
+    void toggleTvSource(String key, String label) {
+        if (!WatchNext.supported()) {
+            Toast.makeText(this, label + " needs Android TV 8 or later.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        if (!WatchNext.granted(this)) {
+            Profiles.homePrefs(this).edit().putBoolean(key, true).apply();
+            Perms.requestTvListings(this);
+            return;
+        }
+        Profiles.homePrefs(this).edit().putBoolean(key, !Profiles.homePrefs(this).getBoolean(key, true)).apply();
+        AppRows.invalidate();
+        showAndFocus(SHELF, label);  // each source's options appear or go
+    }
+
+    /**
+     * Top Shelf: every source of the carousel as a switch, in the carousel's own order, then each
+     * one's options. (Continue Watching used to have its own page; it plays here, so it lives here.)
+     */
     void pageShelf() {
-        row("Mostrar no carrossel", () -> {
-            switch (Suggestions.shelf(this)) {
-                case Suggestions.SHELF_RECS: return "Recomendações";
-                case Suggestions.SHELF_NEWS: return "Notícias";
-                case Suggestions.SHELF_NONE: return "Nada";
-                default: return "Os dois";
-            }
-        }, () -> {
-            String[] keys = {Suggestions.SHELF_BOTH, Suggestions.SHELF_RECS, Suggestions.SHELF_NEWS, Suggestions.SHELF_NONE};
-            String[] names = {"Recomendações e notícias", "Recomendações", "Notícias", "Nada"};
-            int sel = Math.max(0, java.util.Arrays.asList(keys).indexOf(Suggestions.shelf(this)));
-            dialog("Mostrar no carrossel").setSingleChoiceItems(names, sel, (d, w) -> {
-                Suggestions.setShelf(this, keys[w]);
-                d.dismiss();
-                show(SHELF);
-            }).show();
+        row("Continuar assistindo", () -> tvSourceState("cw_enabled"), () -> toggleTvSource("cw_enabled", "Continuar assistindo"));
+        row("Dos seus apps", () -> tvSourceState("app_rows"), () -> toggleTvSource("app_rows", "Dos seus apps"));
+        row("Recomendações", () -> Suggestions.showRecs(this) ? "Ligado" : "Desligado", () -> {
+            Suggestions.setShelf(this, !Suggestions.showRecs(this), Suggestions.showNews(this));
+            showAndFocus(SHELF, "Recomendações");
         });
+        row("Not\u00edcias", () -> Suggestions.showNews(this) ? "Ligado" : "Desligado", () -> {
+            Suggestions.setShelf(this, Suggestions.showRecs(this), !Suggestions.showNews(this));
+            showAndFocus(SHELF, "Not\u00edcias");
+        });
+        if (cwOn()) {
+            section("Continuar assistindo");
+            row("Limpar o hist\u00f3rico", () -> "", () -> {
+                WatchNext.dismissAll(this);
+                Toast.makeText(this, "Hist\u00f3rico limpo", Toast.LENGTH_SHORT).show();
+            });
+        }
+        if (appRowsOn()) {
+            section("Dos seus apps");
+            row("Apps", () -> {
+                int n = AppRows.hidden(this).size();
+                return n == 0 ? "Todos" : n + " ocultos";
+            }, this::chooseRowApps);
+        }
         if (Suggestions.showRecs(this)) {
             section("Recomendações");
             row("Fonte", () -> Suggestions.sourceName(Suggestions.source(this)), this::chooseSource);
@@ -349,6 +400,37 @@ public class SettingsActivity extends Activity {
                 Toast.makeText(this, "O carrossel vai atualizar na tela inicial", Toast.LENGTH_SHORT).show();
             });
         }
+    }
+
+    /** Which apps' rows the carousel uses (apps that publish rows on this TV). */
+    void chooseRowApps() {
+        new Thread(() -> {
+            List<String> pkgs = new ArrayList<>(AppRows.load(this).byApp.keySet());
+            runOnUiThread(() -> {
+                if (pkgs.isEmpty()) {
+                    Toast.makeText(this, "None of your apps publish rows on this TV yet. Open them once and check again.",
+                            Toast.LENGTH_LONG).show();
+                    return;
+                }
+                String[] names = new String[pkgs.size()];
+                boolean[] on = new boolean[names.length];
+                Set<String> hidden = AppRows.hidden(this);
+                for (int i = 0; i < names.length; i++) {
+                    try {
+                        names[i] = String.valueOf(getPackageManager().getApplicationLabel(
+                                getPackageManager().getApplicationInfo(pkgs.get(i), 0)));
+                    } catch (Exception e) {
+                        names[i] = pkgs.get(i);
+                    }
+                    on[i] = !hidden.contains(pkgs.get(i));
+                }
+                dialog("Apps in the carousel").setMultiChoiceItems(names, on, (d, w, checked) -> on[w] = checked)
+                        .setPositiveButton("Done", (d, w) -> {
+                            for (int i = 0; i < on.length; i++) AppRows.setHidden(this, pkgs.get(i), !on[i]);
+                            refreshAll();
+                        }).setNegativeButton("Cancel", null).show();
+            });
+        }).start();
     }
 
     void chooseNewsrooms() {
@@ -503,20 +585,6 @@ public class SettingsActivity extends Activity {
         });
     }
 
-    void pageWatching() {
-        row("Mostrar continuar assistindo", () -> Profiles.homePrefs(this).getBoolean("cw_enabled", false) ? "Ligado" : "Desligado", () -> {
-            boolean on = !Profiles.homePrefs(this).getBoolean("cw_enabled", false);
-            Profiles.homePrefs(this).edit().putBoolean("cw_enabled", on).apply();
-            if (!on) Toast.makeText(this, "Os títulos de continuar assistindo não vão aparecer no carrossel", Toast.LENGTH_SHORT).show();
-        });
-        row("Acesso", () -> MediaWatchService.granted(this) ? "Permitido"
-                : Perms.listenerSupported(this) ? "Permitir\u2026" : "Não existe nesta TV", () -> Perms.requestListener(this));
-        row("Limpar o histórico", () -> "", () -> {
-            MediaWatchService.Store.clear(this);
-            Toast.makeText(this, "Histórico limpo", Toast.LENGTH_SHORT).show();
-        });
-    }
-
     void pageHome() {
         row("Tela inicial", () -> Perms.isDefaultHome(this) ? "Launcher TV Hub" : "Usar este launcher como tela inicial\u2026",
                 () -> Perms.requestDefaultHome(this));
@@ -537,8 +605,45 @@ public class SettingsActivity extends Activity {
             String t = Themes.current(this, Themes.FUNDO);
             return t == null ? "Fotos soltas" : t;
         }, () -> chooseTheme(Themes.FUNDO, "Tema das fotos", null));
+        row("Botão Início abre o TV Hub", () -> PowerService.HomeButton.isDefaultHome(this) ? "Não precisa"
+                : !PowerService.HomeButton.enabled(this) ? "Desligado"
+                : Perms.hasAccessibility(this) ? "Ligado" : "Precisa da chave do TV Hub…", this::toggleHomeButton);
+        section("Iniciar com a TV");
+        row("Abrir", () -> Startup.label(this), this::chooseStartup);
+        if (!Startup.target(this).isEmpty()) {
+            row("Quando", () -> Startup.onWake(this) ? "Quando a TV liga ou acorda" : "Quando a TV liga", () -> {
+                String[] names = {"Quando a TV liga", "Quando a TV liga ou acorda do descanso"};
+                dialog("Abrir").setSingleChoiceItems(names, Startup.onWake(this) ? 1 : 0, (d, w) -> {
+                    Startup.setOnWake(this, w == 1);
+                    d.dismiss();
+                    refreshAll();
+                    if (w == 1 && !Perms.hasAccessibility(this)) {
+                        Perms.requestAccessibility(this, "O Android só deixa o TV Hub abrir um app quando a TV acorda "
+                                + "com a chave de acessibilidade dele ligada.");
+                    }
+                }).show();
+            });
+            if (Startup.onWake(this) && !Perms.hasAccessibility(this)) {
+                row("Ao acordar", () -> "Precisa da chave do TV Hub…", () -> Perms.requestAccessibility(this,
+                        "O Android só deixa o TV Hub abrir um app quando a TV acorda com a chave de acessibilidade dele ligada."));
+            }
+            if (com.petrobot.hume.present.Presenter.enabled(this) && com.petrobot.hume.present.Presenter.startOnBoot(this)) {
+                row("Ao ligar", () -> "A apresentação abre no lugar", () -> show(PRESENT));
+            }
+        }
+        section("Movimento e som");
+        row("Movimento", () -> Motion.NAMES[Motion.level()], () -> {
+            String[] names = {"Completo  (padrão)", "Reduzido — mais curto, sem deslize nem balanço",
+                    "Desligado — as mudanças são instantâneas"};
+            dialog("Movimento").setSingleChoiceItems(names, Motion.level(), (d, w) -> {
+                Motion.set(this, w);
+                d.dismiss();
+                refreshAll();
+            }).show();
+        });
         row("Sons de navegação", () -> Clicks.enabled(this) ? "Ligado" : "Desligado",
                 () -> Clicks.setEnabled(this, !Clicks.enabled(this)));
+        section("Tela inicial");
         row("Protetor de tela depois de", () -> {
             int sec = Profiles.homePrefs(this).getInt("idle_sec", MainActivity.IDLE_DEFAULT);
             return sec == 0 ? "Desligado" : sec < 60 ? "Depois de " + sec + " s" : "Depois de " + (sec / 60) + " min";
@@ -590,9 +695,52 @@ public class SettingsActivity extends Activity {
         });
     }
 
+    /** Home button override: on/off, asking for the accessibility switch when it's needed. */
+    void toggleHomeButton() {
+        if (PowerService.HomeButton.isDefaultHome(this)) {
+            Toast.makeText(this, "Hume is already the home app, so the Home button opens it.", Toast.LENGTH_LONG).show();
+            return;
+        }
+        boolean on = PowerService.HomeButton.enabled(this);
+        if (on && !Perms.hasAccessibility(this)) {
+            Perms.requestAccessibility(this, "This TV keeps its own home screen. With Hume\u2019s switch on, Hume opens "
+                    + "whenever that home screen appears, so the Home button brings you here.");
+            return;
+        }
+        PowerService.HomeButton.setEnabled(this, !on);
+        refreshAll();
+    }
+
+    /** Start with the TV: Home Screen, a TV input, or an app. */
+    void chooseStartup() {
+        List<String> targets = new ArrayList<>(), names = new ArrayList<>();
+        targets.add("");
+        names.add("Home Screen  (default)");
+        for (Inputs.Input in : Inputs.list(this)) {
+            if (in.usb) continue;
+            targets.add("input:" + in.id);
+            names.add(in.label);
+        }
+        for (String[] app : Startup.apps(this)) {
+            targets.add("app:" + app[0]);
+            names.add(app[1]);
+        }
+        int sel = Math.max(0, targets.indexOf(Startup.target(this)));
+        dialog("Quando a TV liga, abrir").setSingleChoiceItems(names.toArray(new String[0]), sel, (d, w) -> {
+            Startup.set(this, targets.get(w), w == 0 ? "" : names.get(w));
+            d.dismiss();
+            showAndFocus(HOME, "Abrir");
+        }).show();
+    }
+
     void pagePermissions() {
-        row("Continuar assistindo e Não perturbe", () -> Perms.hasListener(this) ? "Permitido"
-                : Perms.listenerSupported(this) ? "Permitir\u2026" : "Não existe nesta TV",
+        row("Botão Início e iniciar com a TV", () -> Perms.hasAccessibility(this) ? "Permitido" : "Permitir…",
+                () -> Perms.requestAccessibility(this, "A chave do TV Hub deixa ele abrir sozinho quando a tela "
+                        + "inicial de fábrica aparece, e abrir o app que você escolheu quando a TV acorda."));
+        row("Continuar assistindo (listas dos apps)", () -> Perms.hasTvListings(this) ? "Permitido"
+                : WatchNext.supported() ? "Permitir…" : "Não existe nesta TV", () -> Perms.requestTvListings(this));
+        row("Não perturbe", () -> Perms.hasListener(this) ? "Permitido"
+                : Perms.listenerSupported(this) ? "Permitir…" : "Não existe nesta TV",
                 () -> Perms.requestListener(this));
         row("Desligar e timer de sono", () -> Perms.hasAdmin(this) ? "Permitido"
                 : Perms.adminSupported(this) ? "Permitir\u2026" : "Não existe nesta TV", () -> Perms.requestAdmin(this));
@@ -671,8 +819,19 @@ public class SettingsActivity extends Activity {
     }
 
     /** A settings row: label left, current value right; focus lifts it onto a light plate. */
+    /** This page's rows by label, so a page rebuilt after a choice can keep focus on that row. */
+    final java.util.Map<String, android.view.View> rowsByLabel = new java.util.HashMap<>();
+
+    /** Rebuilds a page (its rows can change after a choice) and keeps focus on the row just used. */
+    void showAndFocus(String p, String label) {
+        show(p);
+        android.view.View v = rowsByLabel.get(label);
+        if (v != null) v.requestFocus();
+    }
+
     android.view.View row(String label, Value value, Runnable action) {
         LinearLayout r = new LinearLayout(this);
+        rowsByLabel.put(label, r);
         r.setOrientation(LinearLayout.HORIZONTAL);
         r.setGravity(Gravity.CENTER_VERTICAL);
         r.setFocusable(true);
@@ -705,7 +864,7 @@ public class SettingsActivity extends Activity {
             bg.setColor(has ? 0xF2FFFFFF : 0x14FFFFFF);
             l.setTextColor(has ? 0xFF111114 : Color.WHITE);
             v.setTextColor(has ? 0x99111114 : 0x99FFFFFF);
-            view.animate().withLayer().scaleX(has ? 1.03f : 1f).scaleY(has ? 1.03f : 1f).setDuration(180).start();
+            view.animate().withLayer().scaleX(has ? 1.03f : 1f).scaleY(has ? 1.03f : 1f).setDuration(Motion.d(180)).start();
         });
         r.setOnClickListener(view -> {
             action.run();
@@ -720,7 +879,7 @@ public class SettingsActivity extends Activity {
     @Override
     public boolean dispatchKeyEvent(android.view.KeyEvent ev) {
         MainActivity.navSound(this, ev);
-        return super.dispatchKeyEvent(ev);
+        return super.dispatchKeyEvent(ev) || Clicks.moveFocus(getWindow(), ev);
     }
 
     /** Picks a theme pack; `same` is an extra first option that stores Themes.SAME (null: none). */
@@ -743,7 +902,7 @@ public class SettingsActivity extends Activity {
     }
 
     AlertDialog.Builder dialog(String title) {
-        return new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert).setTitle(title);
+        return Clicks.dialog(this).setTitle(title);
     }
 
     void refreshAll() {
@@ -759,7 +918,7 @@ public class SettingsActivity extends Activity {
             Suggestions.changed(this);
             refreshAll();
             d.dismiss();
-            show(SHELF);
+            showAndFocus(SHELF, "Source");
             if (w == 1 && !Suggestions.hasToken(this)) enterToken();
         }).show();
     }

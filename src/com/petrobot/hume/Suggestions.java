@@ -96,6 +96,8 @@ final class Suggestions {
         String pkg = "", key = "";
         float progress = -1f;
         int remainingMin = -1;
+        /** Continue Watching: when it was last played (ms), for ordering. */
+        long played;
         double rating;
         /** News: when the story was published (ms), for "2 h ago". */
         long published;
@@ -223,6 +225,14 @@ final class Suggestions {
         cacheFile(c).delete();
     }
 
+    /**
+     * Refresh: mark the cached list out of date without deleting it, so the carousel keeps showing
+     * it until the new one has been fetched (instead of going empty for the length of a download).
+     */
+    static void expire(Context c) {
+        prefs(c).edit().putBoolean("expired", true).apply();
+    }
+
     static int version(Context c) {
         return prefs(c).getInt(K_VERSION, 0);
     }
@@ -239,7 +249,7 @@ final class Suggestions {
         File f = cacheFile(c);
         if (!f.exists()) return null;
         long maxAge = showNews(c) ? Math.min(News.refreshMinutes(c) * 60000L, MAX_AGE_MS) : MAX_AGE_MS;
-        if (!allowStale && System.currentTimeMillis() - f.lastModified() > maxAge) return null;
+        if (!allowStale && (prefs(c).getBoolean("expired", false) || System.currentTimeMillis() - f.lastModified() > maxAge)) return null;
         try {
             JSONArray a = new JSONArray(new String(readAll(new FileInputStream(f)), StandardCharsets.UTF_8));
             List<Item> out = new ArrayList<>();
@@ -275,6 +285,7 @@ final class Suggestions {
         try (OutputStream os = new FileOutputStream(cacheFile(c))) {
             os.write(a.toString().getBytes(StandardCharsets.UTF_8));
         }
+        prefs(c).edit().putBoolean("expired", false).apply();
         return out;
     }
 
@@ -571,6 +582,24 @@ final class Suggestions {
             while (o.outWidth / (o.inSampleSize * 2) >= maxWidth) o.inSampleSize *= 2;
             o.inJustDecodeBounds = false;
             return BitmapFactory.decodeFile(path, o);
+        }
+        if (path.startsWith("content:") || path.startsWith("android.resource:")) {  // Watch Next artwork
+            try {
+                Uri u = Uri.parse(path);
+                BitmapFactory.Options o = new BitmapFactory.Options();
+                o.inJustDecodeBounds = true;
+                try (InputStream in = c.getContentResolver().openInputStream(u)) {
+                    BitmapFactory.decodeStream(in, null, o);
+                }
+                o.inSampleSize = 1;
+                while (o.outWidth / (o.inSampleSize * 2) >= maxWidth) o.inSampleSize *= 2;
+                o.inJustDecodeBounds = false;
+                try (InputStream in = c.getContentResolver().openInputStream(u)) {
+                    return BitmapFactory.decodeStream(in, null, o);
+                }
+            } catch (Exception e) {
+                return null;
+            }
         }
         try {
             File dir = new File(c.getCacheDir(), "tmdb");

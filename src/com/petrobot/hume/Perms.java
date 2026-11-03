@@ -15,13 +15,15 @@ import android.provider.Settings;
  * Permissions, asked for on screen wherever the TV allows it; adb is only the last resort.
  * - Location (Wi-Fi name): the normal runtime prompt.
  * - Device admin (Power Off, Sleep Timer): Android's "Activate device admin app?" screen.
- * - Notification access (Continue Watching, Do Not Disturb): the system's notification-access
- *   screen (Android 11+ opens Hume's own switch directly).
+ * - TV listings (Continue Watching from apps' Watch Next rows, Android TV 8+): the normal runtime prompt.
+ * - Notification access (Do Not Disturb): the system's notification-access screen (Android 11+
+ *   opens Hume's own switch directly).
  * Some TVs (e.g. Android 9 builds) have no screen for the last two; only then is the
  * one-time computer command shown.
  */
 final class Perms {
     static final int REQ_LOCATION = 41;
+    static final int REQ_TV_LISTINGS = 43;
 
     private Perms() {
     }
@@ -68,31 +70,68 @@ final class Perms {
         return MediaWatchService.granted(a);
     }
 
-    static void requestLocation(Activity a) {
-        if (!hasLocation(a)) a.requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQ_LOCATION);
+    // ---------------------------------------------------------------- Continue Watching
+
+    static boolean hasTvListings(Activity a) {
+        return WatchNext.granted(a);
     }
 
-    /** Opens the TV's accessibility list so the user can switch the launcher's service on. */
-    static void requestAccessibility(Activity a, String why) {
-        Intent acc = accessibilityScreen(a);
-        if (acc == null) {
-            new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                    .setTitle("Não existe nesta TV")
-                    .setMessage("Esta TV não tem a tela de acessibilidade, então não dá para ligar o serviço.")
+    static void requestTvListings(Activity a) {
+        if (hasTvListings(a)) return;
+        if (!WatchNext.supported()) {
+            Clicks.dialog(a)
+                    .setTitle("Not available on this TV")
+                    .setMessage("Continue Watching reads your apps' Watch Next lists, which need Android TV 8 or later.")
                     .setPositiveButton("OK", null).show();
             return;
         }
-        new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Ligar o serviço")
-                .setMessage(why + "\n\nNa próxima tela, escolha \u201cTV Hub \u2013 Desligar\u201d e ligue.")
+        android.content.SharedPreferences p = a.getSharedPreferences("perms", Activity.MODE_PRIVATE);
+        // Once refused with "Don't ask again", Android answers without showing the prompt.
+        if (p.getBoolean("asked_tv_listings", false) && !a.shouldShowRequestPermissionRationale(WatchNext.PERM)) {
+            lastResort(a, "Continue Watching",
+                    "adb shell pm grant com.petrobot.hume android.permission.READ_TV_LISTINGS");
+            return;
+        }
+        p.edit().putBoolean("asked_tv_listings", true).apply();
+        a.requestPermissions(new String[]{WatchNext.PERM}, REQ_TV_LISTINGS);
+    }
+
+    /** Hume's accessibility switch is on (Power Off fallback, Clean, Home button, waking into an app). */
+    static boolean hasAccessibility(Activity a) {
+        return PowerService.instance != null;
+    }
+
+    /** Opens the TV's Accessibility settings with a short explanation of what the switch is for. */
+    static void requestAccessibility(Activity a, String why) {
+        if (hasAccessibility(a)) return;
+        Intent acc = accessibilityScreen(a);
+        if (acc == null) {
+            lastResort(a, "chave do TV Hub", "adb shell settings put secure enabled_accessibility_services "
+                    + "com.petrobot.hume/com.petrobot.hume.PowerService\n"
+                    + "adb shell settings put secure accessibility_enabled 1");
+            return;
+        }
+        // Switched on but not running: Android stops it when the app is force-stopped and only
+        // restarts it on reboot or when the switch is turned off and on again.
+        String on = Settings.Secure.getString(a.getContentResolver(), Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES);
+        boolean stale = on != null && on.contains(a.getPackageName() + "/");
+        Clicks.dialog(a)
+                .setTitle(stale ? "Reativar a chave do TV Hub" : "Ligar a chave do TV Hub")
+                .setMessage(why + (stale
+                        ? "\n\nEla est\u00e1 ligada, mas o Android pausou. Na pr\u00f3xima tela, escolha \u201cTV Hub\u201d, desligue e ligue de novo."
+                        : "\n\nNa pr\u00f3xima tela, escolha \u201cTV Hub\u201d e ligue."))
                 .setPositiveButton("Abrir acessibilidade", (d, w) -> tryStart(a, acc))
                 .setNegativeButton("Cancelar", null).show();
+    }
+
+    static void requestLocation(Activity a) {
+        if (!hasLocation(a)) a.requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION}, REQ_LOCATION);
     }
 
     static void requestAdmin(Activity a) {
         if (hasAdmin(a)) return;
         if (!adminSupported(a)) {
-            new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            Clicks.dialog(a)
                     .setTitle("Não existe nesta TV")
                     .setMessage("Esta TV não deixa um app apagar a tela, então Desligar e o timer de sono não funcionam "
                             + "aqui. Use o botão de liga/desliga do controle.")
@@ -102,10 +141,10 @@ final class Perms {
         if (!adminWorks(a)) {
             // Device admin is switched off on this TV: use Hume's accessibility switch instead.
             Intent acc = accessibilityScreen(a);
-            new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            Clicks.dialog(a)
                     .setTitle("Ligar o Desligar")
-                    .setMessage("Na próxima tela, escolha \u201cHume Launcher \u2013 Power Off\u201d e ligue. "
-                            + "Isso só deixa o launcher suspender a TV.")
+                    .setMessage("Na próxima tela, escolha “TV Hub” e ligue. "
+                            + "Isso deixa o launcher suspender a TV (e cuidar do botão Início e do iniciar junto com a TV).")
                     .setPositiveButton("Abrir acessibilidade", (d, w) -> tryStart(a, acc))
                     .setNegativeButton("Cancelar", null).show();
             return;
@@ -122,10 +161,10 @@ final class Perms {
     static void requestListener(Activity a) {
         if (hasListener(a)) return;
         if (!listenerSupported(a)) {
-            new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+            Clicks.dialog(a)
                     .setTitle("Não existe nesta TV")
-                    .setMessage("Esta TV tem pouca memória, então o Android não deixa um app ler o que está tocando. "
-                            + "Continuar assistindo e Não perturbe não funcionam aqui.")
+                    .setMessage("Esta TV tem pouca memória, então o Android não dá acesso às notificações. "
+                            + "Não perturbe não funciona aqui.")
                     .setPositiveButton("OK", null).show();
             return;
         }
@@ -136,7 +175,7 @@ final class Perms {
         }
         if (tryStart(a, new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))) return;
         if (tryStart(a, new Intent("android.settings.NOTIFICATION_POLICY_ACCESS_SETTINGS"))) return;
-        lastResort(a, "Continuar assistindo e Não perturbe",
+        lastResort(a, "Não perturbe",
                 "adb shell cmd notification allow_listener com.petrobot.hume/com.petrobot.hume.MediaWatchService");
     }
 
@@ -183,6 +222,13 @@ final class Perms {
         android.content.pm.ResolveInfo def = a.getPackageManager().resolveActivity(home, PackageManager.MATCH_DEFAULT_ONLY);
         boolean noDefault = def == null || def.activityInfo == null || "android".equals(def.activityInfo.packageName);
         if (noDefault && tryStart(a, home.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))) return;
+        // TVs que mantêm a própria tela inicial (Google TV): o launcher assume o botão Início.
+        if (accessibilityScreen(a) != null || hasAccessibility(a)) {
+            PowerService.HomeButton.setEnabled(a, true);
+            requestAccessibility(a, "Esta TV não deixa escolher outro app de tela inicial. Com a chave do TV Hub "
+                    + "ligada, ele abre sempre que a tela inicial de fábrica aparece, então o botão Início traz você para cá.");
+            return;
+        }
         lastResort(a, "Tela inicial",
                 "adb shell cmd package set-home-activity com.petrobot.hume/.MainActivity\n"
                         + "(on Google TV also: adb shell pm disable-user --user 0 com.google.android.tvlauncher)");
@@ -190,7 +236,7 @@ final class Perms {
 
     /** Only when the TV has no screen for it: explain plainly, with the command for whoever installs the TV. */
     private static void lastResort(Activity a, String what, String cmd) {
-        new AlertDialog.Builder(a, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        Clicks.dialog(a)
                 .setTitle(what)
                 .setMessage("Os ajustes desta TV não têm essa permissão. Quem configurou a TV pode ligar "
                         + "uma vez, de um computador na mesma rede:\n\n" + cmd)

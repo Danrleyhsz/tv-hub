@@ -8,21 +8,28 @@ Everything Hume Launcher does, by area. For how the code is organised see
 - [Status row](#status-row) · [Search](#search) · [Carousel (top shelf)](#carousel-top-shelf) · [Idle full-screen carousel](#idle-full-screen-carousel)
 - [Weather](#weather) · [Control Center](#control-center) · [Profiles](#profiles) · [Inputs](#inputs)
 - [Presentation mode](#presentation-mode) · [Screensaver](#screensaver) · [AirPlay](#airplay-with-the-airplay-server-app)
-- [Navigation sounds](#navigation-sounds) · [Settings](#settings) · [Permissions](#permissions) · [Display scaling](#display-scaling)
+- [Motion & sound](#motion--sound) · [Settings](#settings) · [Permissions](#permissions) · [Display scaling](#display-scaling)
 
 ## First-time setup
 
-The first time Hume opens it walks through Apple-style pages, one question each (OK moves on, Back
-goes back):
+The first time Hume opens it walks through Apple-style pages, one question each. Choices sit in a
+list; moving on is always a separate pill button under it (**Back** · **Continue**), so picking an
+option never skips a page. Each row shows what kind it is: an **On/Off switch**, a **radio dot**
+(one of a list), or an **action** with its state on the right (*Allow ›*, *✓ Allowed*, *✓ Done*).
+Choices change in place, and the remote's Back key also goes back.
 
 1. **Welcome**, fading through Indian and world languages, then *Get Started*.
-2. **Create Your Profile**: a name and an emoji avatar.
-3. **Choose a look**: the background, previewed live behind the page.
-4. **Your Home Screen** (this profile): Recommendations, News and Continue Watching on/off.
-5. **Weather**: use my location (shows the detected city), choose a city, or don't show weather.
-6. **Presentation** (whole TV): use Presentation; if on, *Start with the TV* and *Keep Screen Awake*.
-7. **Finish Setting Up**: Android's location prompt appears at once; make Hume the home screen and
-   allow whatever else the TV supports (each ticks when done; unsupported ones are left out).
+2. **Create Your Profile**: name (shown on the row; OK edits it) and an emoji avatar (ringed when chosen).
+3. **Choose a Look**: backgrounds previewed live as you move; OK picks one (radio).
+4. **Your Home Screen** (this profile): switches for Recommendations, News, Continue Watching and
+   From Your Apps. The last two need the TV-listings permission: turning one on asks right there
+   (on Android 7 they say *Needs Android TV 8 or later*).
+5. **Weather**: use my location (shows the detected city), choose a city (opens Settings, comes
+   back selected), or don't show weather.
+6. **Presentation** (whole TV): off for most homes; if on, *Start with the TV* and *Keep Screen Awake*.
+7. **Finish Setting Up**: Home Screen, Continue Watching & Your Apps, Power Off, Wi-Fi name — each
+   with its state; nothing is asked until its row is pressed. On TVs without a home-app chooser
+   (Google TV), *Set Up* turns on Hume's switch for the Home button.
 8. **You're All Set** → Home.
 
 Settings → Home → **Run setup again** repeats it. If Home is pressed mid-way, setup resumes.
@@ -55,7 +62,7 @@ Settings → Home → **Run setup again** repeats it. If Home is pressed mid-way
 | Move mode | Arrows / OK | Move the wiggling card / finish |
 | Dock | Up | Carousel |
 | Carousel | Left / Right | Previous / next item (wraps around) |
-| Carousel (Continue Watching item) | Right | Moves from **Resume** to **Remove** |
+| Carousel (Continue Watching item) | OK / Hold OK or Menu | **Resume** / options: Resume, Remove (Left/Right keep browsing) |
 | Status row | Left / Right | Weather pill ⇄ Refresh ⇄ Search ⇄ Control Center ⇄ avatar |
 | Anywhere on Home | Hold Back for 1 second | Opens Search (a short press of Back works as before) |
 | Anywhere on Home | Search key on remotes that have one | Opens Search and starts dictation |
@@ -123,10 +130,24 @@ it, so it can't open Hume's Search.)
 
 Full-screen artwork behind the dock while a dock app is focused. One carousel holds, in order:
 
-1. **Continue Watching** (up to six): what you played recently in each app, from the "now playing"
-   information apps publish (title, artwork, position, time left). **▶ Resume** opens the app;
-   **✕ Remove** drops it. Titles not played again for **7 days** expire.
-2. **News** and **recommendations**, alternating.
+1. **Continue Watching** (up to six): what you're in the middle of, newest first, from apps'
+   **Watch Next lists** (Netflix, Prime Video, Crunchyroll, Jellyfin, Nuvio and other apps that
+   publish one). **Android TV 8.0 and later**; on older TVs Hume says it isn't supported.
+   - The show, season and episode, artwork, time left, and **Up Next** / **New** episodes.
+     **▶ Resume** opens the episode itself in the app. Works on low-RAM TVs.
+   - Nothing under **10 minutes** (trailers, clips, shorts, ads).
+   - One card per show per app, at most three per app. A title is done at 95% or with under
+     2 minutes left (the credits). **Hold OK** (or Menu) → **Remove** hides it until you watch
+     it again; Left/Right always move through the carousel. Titles not played for 60 days drop off.
+   - Apps that don't publish a Watch Next list (or hide it from other apps) don't appear.
+   Items from apps' own *Continue watching* rows (e.g. Stremio's) follow the dated ones.
+2. **From your apps**: the rows apps publish for the home screen (YouTube, Stremio, Jellyfin, …),
+   one row per app, at most two items per app and eight in all, taken in turn across apps. Which
+   items show rotates every two hours. **▶ Open** goes to the item in its app; Hold OK →
+   *Don't show <app> here*. Settings → Top Shelf → From Your Apps turns them off or picks apps.
+3. **News** and **recommendations**, alternating; after Continue Watching, one app item is
+   placed for every two of these. A title appears once (Continue Watching, then an app's row,
+   then a recommendation).
 
 - **Recommendations**: popular titles in India on your services. Source **JustWatch** (no key,
   unofficial API) or **TMDB** (free key). Each refresh picks at random from each service's top 20,
@@ -142,7 +163,9 @@ Full-screen artwork behind the dock while a dock app is focused. One carousel ho
   RSS feeds with large images: Times of India, Hindustan Times, The Indian Express, India Today and
   News18 by default (NDTV and The Hindu optional). An editorial layout made for reading: headline,
   summary, section, newsroom and age; no button. Updates every 30 minutes (15/30/60).
-- Each profile chooses what it shows (Settings → Top Shelf / Continue Watching, or setup).
+- Each profile chooses what it shows: Settings → **Top Shelf** has a switch for each source, in the
+  carousel's order — Continue Watching, From Your Apps, Recommendations, News — then each one's
+  options (Clear history, which apps, source, services, newsrooms…). Setup asks the same.
 
 ## Idle full-screen carousel
 
@@ -178,6 +201,8 @@ tile turns solid white.
 | Do Not Disturb | On / off |
 | Audio | Current output; opens sound settings |
 | Sleep Timer | Off → 15 → 30 → 60 → 90 min |
+| Motion | Full → Reduced → Off (see [Motion & sound](#motion--sound)) |
+| Sounds | Navigation sounds on / off |
 | Round shortcuts | Inputs (TVs with inputs; Accessibility otherwise), Bluetooth/controllers, Settings, Search |
 
 ![Control Center](images/control-center.jpg)
@@ -190,6 +215,26 @@ tile turns solid white.
   blurred Home Screen and **+ Add User**. Long-press OK (or Menu) on a profile: Rename, Change
   Emoji, Change Colour, Delete.
 - With two or more profiles, the switcher can appear when the TV wakes (Settings → Profiles).
+
+## Home button
+
+On TVs that keep their own launcher in front (Google TV and most TV brands), Hume doesn't need it
+disabled: with **Hume's switch** on (an accessibility service), Hume opens whenever the TV's own
+home screen appears, from the Home button or Back out of an app. The stock launcher's window
+may flash for a moment. Only the name of the window that opened is checked. Settings → Home →
+*Home button opens Hume* (shows *Not needed* when Hume is already the home app).
+
+If Hume is **force-stopped** (App info → Force stop, or some TV "cleaner" apps), Android pauses its
+switch until the TV restarts or the switch is turned off and on again; Hume's prompt says so.
+Ordinary memory pressure doesn't do this — Android restarts the switch by itself.
+
+## Start with the TV
+
+Settings → Home → **Start with the TV**: open an app or an input (HDMI 1, …) **when the TV starts**,
+or **when it starts or wakes from standby**, instead of Home. For the whole TV, not per profile.
+Waking into an app needs Hume's switch (Android only lets an accessibility service open screens
+from the background); at start-up Hume is on screen anyway. Presentation's own *Start on boot*
+wins at boot. When it opens something on wake, the *Who's Watching?* picker is skipped.
 
 ## Inputs
 
@@ -228,10 +273,25 @@ does) whether the receiver is visible; if not, it restarts the receiver's server
 settings receiver, or starts a stopped app through its start-up receiver. Nothing appears on screen.
 The receiver's name is set in the AirPlay app (e.g. "Mi Box").
 
-## Navigation sounds
+## Motion & sound
 
-Android TV's own system sounds: a focus sound per D-pad direction and the key click on select and
-Back, at 60% of the normal level. Settings → Home → Navigation sounds.
+**Motion** (Settings → Home → Motion & Sound, or the Control Center tile; whole TV):
+
+| | |
+|---|---|
+| **Full** (default) | Every transition, plus motion that runs by itself: focus sway, and the carousel artwork slowly drifting closer (1.0 → 1.06 over 18 s, like Apple TV's Top Shelf) |
+| **Reduced** | Transitions at 60% length and half the slide distance; nothing moves by itself |
+| **Off** | Changes are instant |
+
+Apple-style cascades, everywhere something appears as a group (each item fades up from slightly
+below and slightly smaller, 22 ms after the one before): the app grid on first start and on
+switching profile, Control Center and Inputs tiles, the *Who's Watching?* avatars, Settings rows
+on every page, and each setup page's title, choices and buttons. Moving between apps (move mode)
+still wiggles at every level, since it shows what is being moved.
+
+**Navigation sounds**: Android TV's own system sounds, a focus sound per D-pad direction and the
+key click on select and Back, at 60% of the normal level. Settings → Home → Motion & Sound, or the
+Control Center tile.
 
 ## Settings
 
@@ -250,8 +310,9 @@ Hume asks on screen wherever the TV allows it; adb is only a last resort.
 | Feature | How it is granted |
 |---|---|
 | Wi-Fi name (location) | Android's permission prompt |
-| Continue Watching & Do Not Disturb | The system notification-access screen. Not possible on low-RAM (1 GB) TVs, where Android disables it — Hume says so |
-| Power Off & Sleep Timer | Android's "Activate device admin app?" screen; where device admin is switched off (e.g. Mi Box), Hume's accessibility switch **Hume Launcher – Power Off** in the TV's Accessibility settings (opened for you). The same switch lets Clean close apps |
+| Continue Watching (apps' Watch Next lists) | Android's permission prompt (*TV listings*). **Android TV 8.0 and later** — Watch Next and this permission both arrived in 8.0; on Android 7 Continue Watching isn't supported, and setup says so |
+| Do Not Disturb | The system notification-access screen. Not possible on low-RAM (1 GB) TVs, where Android disables it — Hume says so |
+| Power Off & Sleep Timer | Android's "Activate device admin app?" screen; where device admin is switched off (e.g. Mi Box), Hume's accessibility switch **Hume Launcher** in the TV's Accessibility settings (opened for you). The same switch lets Clean close apps, and powers the Home button override and waking into an app |
 | Search dictation (microphone) | Android's permission prompt the first time the mic is used; without it, the TV's voice prompt is used |
 | Home screen | Android 10+ "default home app" prompt, the TV's Home-app settings, or Android's chooser; Hume offers this once if another launcher is home |
 
